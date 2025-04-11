@@ -6,7 +6,7 @@ class Next_Day_Delivery extends WC_Shipping_Method {
         $this->id = 'next_day_delivery';
         $this->method_title = 'Next Day Delivery';
         $this->method_description = 'Delivery by the next day';
-        $this->enabled = "yes";
+        // $this->enabled = "yes";
         $this->title = "Next Day Delivery";
         $this->init();
     }
