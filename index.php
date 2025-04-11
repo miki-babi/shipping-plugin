@@ -123,7 +123,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
     add_action('woocommerce_shipping_init', 'Launch_Shipping_Method');
 
     function add_launch_shipping_method($methods) {
-    $methods[] = 'launch_shipping_method';
+    $methods['launch_shipping'] = 'launch_shipping_method';
     return $methods;
     }
     add_filter('woocommerce_shipping_methods', 'add_launch_shipping_method');
