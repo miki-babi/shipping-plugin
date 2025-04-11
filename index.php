@@ -9,76 +9,19 @@
  */
 
 // Prevent direct access to the file
-if (!defined('ABSPATH')) {
-    exit;
-}
 
-if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
 
-	function your_shipping_method_init() {
-		if ( ! class_exists( 'WC_Your_Shipping_Method' ) ) {
-			class WC_Your_Shipping_Method extends WC_Shipping_Method {
-				/**
-				 * Constructor for your shipping class
-				 *
-				 * @access public
-				 * @return void
-				 */
-				public function __construct() {
-					$this->id                 = 'your_shipping_method'; // Id for your shipping method. Should be uunique.
-					$this->method_title       = __( 'Your Shipping Method' );  // Title shown in admin
-					$this->method_description = __( 'Description of your shipping method' ); // Description shown in admin
+if (!defined('ABSPATH')) exit;
 
-					$this->enabled            = "yes"; // This can be added as an setting but for this example its forced enabled
-					$this->title              = "My Shipping Method"; // This can be added as an setting but for this example its forced.
+add_action('woocommerce_shipping_init', function() {
+    require_once __DIR__ . '/includes/class-express-delivery.php';
+    require_once __DIR__ . '/includes/class-same-day-delivery.php';
+    require_once __DIR__ . '/includes/class-next-day-delivery.php';
+});
 
-					$this->init();
-				}
-
-				/**
-				 * Init your settings
-				 *
-				 * @access public
-				 * @return void
-				 */
-				function init() {
-					// Load the settings API
-					$this->init_form_fields(); // This is part of the settings API. Override the method to add your own settings
-					$this->init_settings(); // This is part of the settings API. Loads settings you previously init.
-
-					// Save settings in admin if you have any defined
-					add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options' ) );
-				}
-
-				/**
-				 * calculate_shipping function.
-				 *
-				 * @access public
-				 * @param array $package
-				 * @return void
-				 */
-				public function calculate_shipping( $package = array() ) {
-					$rate = array(
-						'label' => $this->title,
-						'cost' => '10.99',
-						'calc_tax' => 'per_item'
-					);
-
-					// Register the rate
-					$this->add_rate( $rate );
-				}
-			}
-		}
-	}
-
-	add_action( 'woocommerce_shipping_init', 'your_shipping_method_init' );
-
-	function add_your_shipping_method( $methods ) {
-		$methods['your_shipping_method'] = 'WC_Your_Shipping_Method';
-		return $methods;
-	}
-
-	add_filter( 'woocommerce_shipping_methods', 'add_your_shipping_method' );
-}
-
-	
+add_filter('woocommerce_shipping_methods', function($methods) {
+    $methods['express_delivery'] = 'Express_Delivery';
+    $methods['same_day_delivery'] = 'Same_Day_Delivery';
+    $methods['next_day_delivery'] = 'Next_Day_Delivery';
+    return $methods;
+});
