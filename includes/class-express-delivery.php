@@ -3,11 +3,14 @@
 class Express_Delivery extends WC_Shipping_Method {
     public function __construct() {
         $this->id = 'express_delivery';
-        $this->method_title = 'Express Delivery';
-        $this->method_description = 'Fastest delivery option';
-
-        $this->enabled = "yes";
-        $this->title = "Express Delivery (1-2 hours)";
+        $this->instance_id          = absint( $instance_id );
+        $this->method_title         = __('express delivery', 'express_delivery');
+        $this->method_description   = __('Delivery within 1-2 hours', 'express_delivery');
+        $this->supports             = array(
+            'shipping-zones',
+            'instance-settings',
+            'instance-settings-modal',
+        );
 
         $this->init();
     }
