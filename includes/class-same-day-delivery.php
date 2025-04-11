@@ -1,48 +1,44 @@
 <?php
+if (!defined('ABSPATH')) exit;
 
-class SameDay_Delivery extends WC_Shipping_Method {
+class Same_Day_Delivery extends WC_Shipping_Method {
     public function __construct() {
-        $this->id = 'express_delivery';
-        $this->method_title = 'Express Delivery';
-        $this->method_description = 'Fastest delivery option';
-
+        $this->id = 'same_day_delivery';
+        $this->method_title = 'Same Day Delivery';
+        $this->method_description = 'Delivery within the same day';
         $this->enabled = "yes";
-        $this->title = "Express Delivery (1-2 hours)";
-
+        $this->title = "Same Day Delivery";
         $this->init();
     }
 
     function init() {
         $this->init_form_fields();
         $this->init_settings();
-
-        $this->title = $this->get_option('title');
         add_action('woocommerce_update_options_shipping_' . $this->id, [$this, 'process_admin_options']);
     }
 
     public function init_form_fields() {
         $this->form_fields = [
             'title' => [
-                'title' => 'Method Title',
+                'title' => 'Title',
                 'type' => 'text',
-                'default' => 'Express Delivery (1-2 hours)'
+                'default' => 'Same Day Delivery'
             ],
             'cost' => [
                 'title' => 'Cost',
                 'type' => 'price',
-                'default' => 100
-            ]
+                'default' => '70'
+            ],
         ];
     }
 
     public function calculate_shipping($package = []) {
+        $cost = $this->get_option('cost');
         $rate = [
             'id' => $this->id,
             'label' => $this->title,
-            'cost' => $this->get_option('cost'),
+            'cost' => $cost,
         ];
         $this->add_rate($rate);
     }
 }
-
-
