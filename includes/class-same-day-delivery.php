@@ -6,7 +6,7 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         $this->id = 'same_day_delivery';
         $this->method_title = 'Same Day Delivery';
         $this->method_description = 'Delivery within the same day';
-        // $this->enabled = "yes";
+        $this->enabled = "yes";
         $this->title = "Same Day Delivery";
         $this->init();
     }
