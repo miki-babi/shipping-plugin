@@ -22,9 +22,30 @@ add_action('woocommerce_shipping_init', function() {
 add_filter('woocommerce_shipping_methods', function($methods) {
     $methods['express_delivery'] = 'Express_Delivery';
     $methods['same_day_delivery'] = 'Same_Day_Delivery';
-    // $methods['next_day_delivery'] = 'Next_Day_Delivery';
+    $methods['next_day_delivery'] = 'Next_Day_Delivery';
     return $methods;
 });
+
+
+// Disable express_delivery if cart weight > 20kg
+add_filter('woocommerce_package_rates', function($rates, $package) {
+    $total_weight = 0;
+
+    foreach ($package['contents'] as $item) {
+        $product = $item['data'];
+        $total_weight += (float) $product->get_weight() * $item['quantity'];
+    }
+
+    if ($total_weight > 20) {
+        foreach ($rates as $rate_id => $rate) {
+            if ($rate->method_id === 'express_delivery') {
+                unset($rates[$rate_id]);
+            }
+        }
+    }
+
+    return $rates;
+}, 10, 2);
 
 // if ( ! defined( 'ABSPATH' ) ) {
 //     exit; // Exit if accessed directly
