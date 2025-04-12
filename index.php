@@ -22,7 +22,7 @@ add_action('woocommerce_shipping_init', function() {
 add_filter('woocommerce_shipping_methods', function($methods) {
     $methods['express_delivery'] = 'Express_Delivery';
     $methods['same_day_delivery'] = 'Same_Day_Delivery';
-    $methods['next_day_delivery'] = 'Next_Day_Delivery';
+    // $methods['next_day_delivery'] = 'Next_Day_Delivery';
     return $methods;
 });
 
