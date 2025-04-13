@@ -28,24 +28,6 @@ add_filter('woocommerce_shipping_methods', function($methods) {
 
 
 // Disable express_delivery if cart weight > 20kg
-add_filter('woocommerce_package_rates', function($rates, $package) {
-    $total_weight = 0;
-
-    foreach ($package['contents'] as $item) {
-        $product = $item['data'];
-        $total_weight += (float) $product->get_weight() * $item['quantity'];
-    }
-
-    if ($total_weight > 20) {
-        foreach ($rates as $rate_id => $rate) {
-            if ($rate->method_id === 'express_delivery') {
-                unset($rates[$rate_id]);
-            }
-        }
-    }
-
-    return $rates;
-}, 10, 2);
 
 // if ( ! defined( 'ABSPATH' ) ) {
 //     exit; // Exit if accessed directly
