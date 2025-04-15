@@ -56,7 +56,7 @@ class Express_Delivery extends WC_Shipping_Method {
             $base_cost += 10;
         }
     
-        $per_km = floatval($this->get_option('cost_per_km'));
+        $per_km = 25;
         $distance_km = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 1;
         if ($distance_km <= 0) {
             $distance_km = 1;
