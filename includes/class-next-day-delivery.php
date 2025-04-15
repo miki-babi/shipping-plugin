@@ -33,7 +33,7 @@ class Next_Day_Delivery extends WC_Shipping_Method {
     }
 
     public function calculate_shipping($package = []) {
-        $cost = $this->get_option('cost');
+        $cost = 0;
         $rate = [
             'id' => $this->id,
             'label' => $this->title,
