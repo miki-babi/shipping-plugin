@@ -38,7 +38,22 @@ class Express_Delivery extends WC_Shipping_Method {
     }
 
     public function calculate_shipping($package = []) {
-        $base_cost = floatval($this->get_option('base_cost'));
+
+        $weight = $this->get_package_weight($package);
+
+        
+
+        if ($weight > 10) {
+            $base_cost = $this->get_option('base_cost') + 20; // Additional cost for heavy packages
+        } else if ($weight > 5) {
+            $base_cost = $this->get_option('base_cost') + 10; // Additional cost for medium packages
+        } else if ($weight > 0) {
+            $base_cost = $this->get_option('base_cost'); // Base cost for light packages
+        } else {
+            $base_cost = $this->get_option('base_cost');
+        }
+        
+        floatval($this->get_option('base_cost'));
         $per_km = floatval($this->get_option('cost_per_km'));
         $distance_km = 0;
 
