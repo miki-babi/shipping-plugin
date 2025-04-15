@@ -24,21 +24,40 @@ class Express_Delivery extends WC_Shipping_Method {
                 'type' => 'text',
                 'default' => 'Express Delivery (1-2 hours)'
             ],
-            'cost' => [
-                'title' => 'Cost',
+            'base_cost' => [
+                'title' => 'Base Cost',
                 'type' => 'price',
-                'default' => '100'
+                'default' => '50'
+            ],
+            'cost_per_km' => [
+                'title' => 'Cost per KM',
+                'type' => 'price',
+                'default' => '10'
             ],
         ];
     }
 
     public function calculate_shipping($package = []) {
-        $cost = $this->get_option('cost');
-        $rate = [
+        $base_cost = floatval($this->get_option('base_cost'));
+        $per_km = floatval($this->get_option('cost_per_km'));
+        $distance_km = 0;
+
+        // Get distance from cookie
+        if (isset($_COOKIE['delivery_distance'])) {
+            $distance_km = floatval($_COOKIE['delivery_distance']);
+        }
+
+        // Fallback if cookie not set
+        if ($distance_km <= 0) {
+            $distance_km = 1; // Default minimum distance
+        }
+
+        $cost = $base_cost + ($per_km * $distance_km);
+
+        $this->add_rate([
             'id' => $this->id,
             'label' => $this->title,
-            'cost' => $cost,
-        ];
-        $this->add_rate($rate);
+            'cost' => round($cost, 2),
+        ]);
     }
 }
