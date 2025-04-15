@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Shipping Plugin
- * Description: A starter plugin for managing shipping functionality.
+ * Description: A plugin for managing shipping functionality.
  * Version: 1.0.0
  * Author: mikiyas
  * Author URI: https://t.me/mikiyas_sh
