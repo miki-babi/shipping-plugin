@@ -6,7 +6,7 @@ class Express_Delivery extends WC_Shipping_Method {
         $this->id = 'express_delivery';
         $this->method_title = 'Express Delivery';
         $this->method_description = 'Delivery in 1-2 hours';
-        $this->enabled = "yes";
+        $this->enabled = "no";
         $this->title = "Express Delivery (1-2 hours)";
         $this->init();
     }
