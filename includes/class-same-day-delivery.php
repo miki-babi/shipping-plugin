@@ -33,7 +33,25 @@ class Same_Day_Delivery extends WC_Shipping_Method {
     }
 
     public function calculate_shipping($package = []) {
-        $cost = $this->get_option('cost');
+        $weight = 0;
+        if (!empty($package['contents'])) {
+            foreach ($package['contents'] as $item) {
+                if (isset($item['data']) && $item['data']->has_weight()) {
+                    $weight += floatval($item['data']->get_weight()) * $item['quantity'];
+                }
+            }
+        }
+
+        $base_cost = floatval($this->get_option('cost'));
+        $per_km = 25;
+        $distance_km = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 1;
+
+        if ($weight > 10 || $distance_km > 3) {
+            $cost = $base_cost + ($distance_km * $per_km);
+        } else {
+            $cost = 0; // Free for weight under 10 and distance 3 or less
+        }
+
         $rate = [
             'id' => $this->id,
             'label' => $this->title,
@@ -41,4 +59,8 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         ];
         $this->add_rate($rate);
     }
+
+
+
+
 }
