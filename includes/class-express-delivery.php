@@ -62,8 +62,8 @@ class Express_Delivery extends WC_Shipping_Method {
             $distance_km = 1;
         }
     
-        $cost = 1;
-        // $cost = $base_cost + ($per_km * $distance_km);
+        // $cost = 1;
+        $cost = $base_cost + ($per_km * $distance_km);
     
         $this->add_rate([
             'id' => $this->id,
