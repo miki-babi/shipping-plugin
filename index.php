@@ -92,31 +92,69 @@ add_action('woocommerce_after_shipping_rate', function($method, $index) {
     }
     echo '<div class="other-days-date-wrap" style="display:none; margin:8px 0 0 24px;" data-rate-id="' . esc_attr($method->id) . '">';
     echo '<label for="other_days_date" style="display:block; margin-bottom:4px;">' . esc_html__('Select delivery date', 'shipping-plugin') . '</label>';
-    echo '<input type="date" id="other_days_date" name="other_days_date" min="' . esc_attr(gmdate('Y-m-d')) . '" />';
+    // Visible field has a different name; we sync it to a hidden field to persist across fragment refreshes
+    echo '<input type="date" id="other_days_date" class="sp-other-days-date" name="other_days_date_visible" min="' . esc_attr(gmdate('Y-m-d')) . '" />';
     echo '</div>';
 }, 10, 2);
 
 // Toggle the date field visibility based on selected shipping method (checkout page)
 add_action('wp_enqueue_scripts', function() {
     if (!function_exists('is_checkout') || !is_checkout()) return;
-    $js = "document.addEventListener('DOMContentLoaded',function(){
-        function toggleOtherDays(){
-            var checked = document.querySelector('input[name^=\\'shipping_method\\']:checked');
-            var wrap = document.querySelector('.other-days-date-wrap');
-            if(!wrap) return;
-            if(checked && checked.value && checked.value.indexOf('other_days_delivery') === 0){
-                wrap.style.display = 'block';
-            } else {
-                wrap.style.display = 'none';
-            }
+    $js = "function spGetChecked(){ return document.querySelector('input[name^=\'shipping_method\']:checked'); }
+        function spToggleOtherDays(){
+            var checked = spGetChecked();
+            var wraps = document.querySelectorAll('.other-days-date-wrap');
+            wraps.forEach(function(w){
+                var isOther = checked && checked.value && checked.value.indexOf('other_days_delivery') === 0;
+                var match = isOther && w.getAttribute('data-rate-id') === checked.value;
+                w.style.display = match ? 'block' : 'none';
+            });
         }
-        document.body.addEventListener('change', function(e){ if(e.target && e.target.name && e.target.name.indexOf('shipping_method')===0){ toggleOtherDays(); }});
-        toggleOtherDays();
-    });";
+        function spFindVisibleInput(){
+            var checked = spGetChecked();
+            if(!(checked && checked.value && checked.value.indexOf('other_days_delivery') === 0)) return null;
+            var wraps = document.querySelectorAll('.other-days-date-wrap');
+            for (var i=0;i<wraps.length;i++){
+                if(wraps[i].getAttribute('data-rate-id') === checked.value){
+                    return wraps[i].querySelector('.sp-other-days-date');
+                }
+            }
+            return null;
+        }
+        function spSyncDateVisibleHidden(){
+            var hid = document.getElementById('other_days_date_hidden');
+            if(!hid) return;
+            var vis = spFindVisibleInput();
+            if(vis){ hid.value = vis.value; }
+        }
+        function spRestoreVisibleFromHidden(){
+            var hid = document.getElementById('other_days_date_hidden');
+            if(!hid) return;
+            var vis = spFindVisibleInput();
+            if(vis && !vis.value && hid.value){ vis.value = hid.value; }
+        }
+        document.addEventListener('DOMContentLoaded',function(){
+            function toggleOtherDays(){
+                spToggleOtherDays();
+                spRestoreVisibleFromHidden();
+            }
+            document.body.addEventListener('change', function(e){ if(e.target && e.target.name && e.target.name.indexOf('shipping_method')===0){ toggleOtherDays(); }});
+            document.body.addEventListener('change', function(e){ if(e.target && e.target.classList && e.target.classList.contains('sp-other-days-date')){ spSyncDateVisibleHidden(); }});
+            // Sync right before submission as well
+            jQuery('form.checkout').on('checkout_place_order', function(){ spSyncDateVisibleHidden(); });
+            toggleOtherDays();
+            jQuery( document.body ).on('updated_checkout', function(){ toggleOtherDays(); });
+        });";
     wp_register_script('sp-other-days-toggle', '', [], null, true);
     wp_enqueue_script('sp-other-days-toggle');
     wp_add_inline_script('sp-other-days-toggle', $js);
 });
+
+// Output a hidden field to persist the selected date across fragment refreshes
+add_action('woocommerce_before_checkout_form', function() {
+    if (!function_exists('is_checkout') || !is_checkout()) return;
+    echo '<input type="hidden" id="other_days_date_hidden" name="other_days_date" value="" />';
+}, 15);
 
 // Validate the date when 'Other Days' is selected
 add_action('woocommerce_checkout_process', function() {
