@@ -17,12 +17,14 @@ add_action('woocommerce_shipping_init', function() {
     require_once __DIR__ . '/includes/class-express-delivery.php';
     require_once __DIR__ . '/includes/class-same-day-delivery.php';
     require_once __DIR__ . '/includes/class-next-day-delivery.php';
+    require_once __DIR__ . '/includes/class-other-days-delivery.php';
 });
 
 add_filter('woocommerce_shipping_methods', function($methods) {
     $methods['next_day_delivery'] = 'Next_Day_Delivery';
     $methods['express_delivery'] = 'Express_Delivery';
     $methods['same_day_delivery'] = 'Same_Day_Delivery';
+    $methods['other_days_delivery'] = 'Other_Days_Delivery';
     return $methods;
 });
 
@@ -82,23 +84,57 @@ if (!function_exists('sp_create_ethiopia_shipping_zone')) {
     }
 }
 
-// Add a delivery date picker to checkout
-add_filter('woocommerce_checkout_fields', function($fields) {
-    $fields['order']['delivery_date'] = [
-        'type'        => 'date',
-        'label'       => __('Preferred delivery date', 'shipping-plugin'),
-        'required'    => false,
-        'class'       => ['form-row-wide'],
-        'priority'    => 25,
-    ];
-    return $fields;
+// Show a delivery date input under the 'Other Days' shipping method when selected
+add_action('woocommerce_after_shipping_rate', function($method, $index) {
+    // $method is WC_Shipping_Rate; method_id is the shipping method slug, id may include instance suffix
+    if (!isset($method->method_id) || $method->method_id !== 'other_days_delivery') {
+        return;
+    }
+    echo '<div class="other-days-date-wrap" style="display:none; margin:8px 0 0 24px;" data-rate-id="' . esc_attr($method->id) . '">';
+    echo '<label for="other_days_date" style="display:block; margin-bottom:4px;">' . esc_html__('Select delivery date', 'shipping-plugin') . '</label>';
+    echo '<input type="date" id="other_days_date" name="other_days_date" min="' . esc_attr(gmdate('Y-m-d')) . '" />';
+    echo '</div>';
+}, 10, 2);
+
+// Toggle the date field visibility based on selected shipping method (checkout page)
+add_action('wp_enqueue_scripts', function() {
+    if (!function_exists('is_checkout') || !is_checkout()) return;
+    $js = "document.addEventListener('DOMContentLoaded',function(){
+        function toggleOtherDays(){
+            var checked = document.querySelector('input[name^=\\'shipping_method\\']:checked');
+            var wrap = document.querySelector('.other-days-date-wrap');
+            if(!wrap) return;
+            if(checked && checked.value && checked.value.indexOf('other_days_delivery') === 0){
+                wrap.style.display = 'block';
+            } else {
+                wrap.style.display = 'none';
+            }
+        }
+        document.body.addEventListener('change', function(e){ if(e.target && e.target.name && e.target.name.indexOf('shipping_method')===0){ toggleOtherDays(); }});
+        toggleOtherDays();
+    });";
+    wp_register_script('sp-other-days-toggle', '', [], null, true);
+    wp_enqueue_script('sp-other-days-toggle');
+    wp_add_inline_script('sp-other-days-toggle', $js);
 });
 
-// Save delivery date to order meta
+// Validate the date when 'Other Days' is selected
+add_action('woocommerce_checkout_process', function() {
+    if (empty($_POST['shipping_method'][0])) return;
+    $selected = wc_clean(wp_unslash($_POST['shipping_method'][0]));
+    if (strpos($selected, 'other_days_delivery') === 0) {
+        $date = isset($_POST['other_days_date']) ? wc_clean(wp_unslash($_POST['other_days_date'])) : '';
+        if (empty($date)) {
+            wc_add_notice(__('Please select a delivery date for Other Days.', 'shipping-plugin'), 'error');
+        }
+    }
+});
+
+// Save the selected date to order meta when 'Other Days' is used
 add_action('woocommerce_checkout_create_order', function($order, $data) {
-    if (isset($_POST['delivery_date'])) {
-        $date = sanitize_text_field(wp_unslash($_POST['delivery_date']));
-        if (!empty($date)) {
+    if (!empty($_POST['shipping_method'][0]) && strpos(wc_clean(wp_unslash($_POST['shipping_method'][0])), 'other_days_delivery') === 0) {
+        if (!empty($_POST['other_days_date'])) {
+            $date = wc_clean(wp_unslash($_POST['other_days_date']));
             $order->update_meta_data('_delivery_date', $date);
         }
     }
@@ -110,12 +146,5 @@ add_action('woocommerce_admin_order_data_after_billing_address', function($order
     if (!empty($date)) {
         echo '<p><strong>' . esc_html__('Preferred delivery date', 'shipping-plugin') . ':</strong> ' . esc_html($date) . '</p>';
     }
-});
-
-// Enqueue jQuery UI datepicker fallback and initialize if available
-add_action('wp_enqueue_scripts', function() {
-    wp_enqueue_script('jquery-ui-datepicker');
-    $inline_js = "jQuery(function($){ var $f = jQuery('#delivery_date'); if ($f.length && jQuery.fn.datepicker) { $f.attr('type','text'); $f.datepicker({ dateFormat: 'yy-mm-dd', minDate: 0 }); } });";
-    wp_add_inline_script('jquery-ui-datepicker', $inline_js);
 });
 
