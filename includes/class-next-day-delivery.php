@@ -33,7 +33,8 @@ class Next_Day_Delivery extends WC_Shipping_Method {
     }
 
     public function calculate_shipping($package = []) {
-        $cost = 0;
+        // Next Day Delivery is a flat rate: Br. 75.00
+        $cost = 75.00;
         $rate = [
             'id' => $this->id,
             'label' => $this->title,

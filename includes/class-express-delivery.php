@@ -38,37 +38,13 @@ class Express_Delivery extends WC_Shipping_Method {
     }
 
     public function calculate_shipping($package = []) {
-        $weight = 0;
-    
-        if (!empty($package['contents'])) {
-            foreach ($package['contents'] as $item) {
-                if (isset($item['data']) && $item['data']->has_weight()) {
-                    $weight += floatval($item['data']->get_weight()) * $item['quantity'];
-                }
-            }
-        }
-    
-        $base_cost = floatval($this->get_option('base_cost'));
-    
-        if ($weight > 10) {
-            $base_cost += 20;
-        } else if ($weight > 5) {
-            $base_cost += 10;
-        }
-    
-        $per_km = 25;
-        $distance_km = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 1;
-        if ($distance_km <= 0) {
-            $distance_km = 1;
-        }
-    
-        // $cost = 1;
-        $cost = $base_cost + ($per_km * $distance_km);
-    
+        // Express Delivery is a flat rate regardless of time: Br. 150.00
+        $cost = 150.00;
+
         $this->add_rate([
             'id' => $this->id,
             'label' => $this->title,
-            'cost' => round($cost, 2),
+            'cost' => $cost,
         ]);
     }
     

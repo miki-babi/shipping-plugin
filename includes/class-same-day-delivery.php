@@ -33,24 +33,12 @@ class Same_Day_Delivery extends WC_Shipping_Method {
     }
 
     public function calculate_shipping($package = []) {
-        $weight = 0;
-        if (!empty($package['contents'])) {
-            foreach ($package['contents'] as $item) {
-                if (isset($item['data']) && $item['data']->has_weight()) {
-                    $weight += floatval($item['data']->get_weight()) * $item['quantity'];
-                }
-            }
-        }
+        // Determine current site-local time and compare to 11:30 AM
+        $now = current_time('timestamp');
+        $today = date('Y-m-d', $now);
+        $cutoff = strtotime($today . ' 11:30', $now);
 
-        $base_cost = floatval($this->get_option('cost'));
-        $per_km = 25;
-        $distance_km = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 1;
-
-        if ($weight > 10 || $distance_km > 3) {
-            $cost = $base_cost + ($distance_km * $per_km);
-        } else {
-            $cost = 0; // Free for weight under 10 and distance 3 or less
-        }
+        $cost = ($now <= $cutoff) ? 75.00 : 150.00; // After 11:30, same as Express
 
         $rate = [
             'id' => $this->id,
