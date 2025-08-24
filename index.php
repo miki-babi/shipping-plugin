@@ -53,7 +53,7 @@ if (!function_exists('sp_create_ethiopia_shipping_zone')) {
         if (!class_exists('WC_Shipping_Zones')) {
             return; // WC not available
         }
-
+        
         // Check if a zone named 'Ethiopia' or a zone that already targets country ET exists
         $existing_zones = WC_Shipping_Zones::get_zones();
         foreach ($existing_zones as $z) {
@@ -81,4 +81,41 @@ if (!function_exists('sp_create_ethiopia_shipping_zone')) {
         $zone->add_location('ET', 'country');
     }
 }
+
+// Add a delivery date picker to checkout
+add_filter('woocommerce_checkout_fields', function($fields) {
+    $fields['order']['delivery_date'] = [
+        'type'        => 'date',
+        'label'       => __('Preferred delivery date', 'shipping-plugin'),
+        'required'    => false,
+        'class'       => ['form-row-wide'],
+        'priority'    => 25,
+    ];
+    return $fields;
+});
+
+// Save delivery date to order meta
+add_action('woocommerce_checkout_create_order', function($order, $data) {
+    if (isset($_POST['delivery_date'])) {
+        $date = sanitize_text_field(wp_unslash($_POST['delivery_date']));
+        if (!empty($date)) {
+            $order->update_meta_data('_delivery_date', $date);
+        }
+    }
+}, 10, 2);
+
+// Show delivery date in admin order screen
+add_action('woocommerce_admin_order_data_after_billing_address', function($order) {
+    $date = $order->get_meta('_delivery_date');
+    if (!empty($date)) {
+        echo '<p><strong>' . esc_html__('Preferred delivery date', 'shipping-plugin') . ':</strong> ' . esc_html($date) . '</p>';
+    }
+});
+
+// Enqueue jQuery UI datepicker fallback and initialize if available
+add_action('wp_enqueue_scripts', function() {
+    wp_enqueue_script('jquery-ui-datepicker');
+    $inline_js = "jQuery(function($){ var $f = jQuery('#delivery_date'); if ($f.length && jQuery.fn.datepicker) { $f.attr('type','text'); $f.datepicker({ dateFormat: 'yy-mm-dd', minDate: 0 }); } });";
+    wp_add_inline_script('jquery-ui-datepicker', $inline_js);
+});
 
