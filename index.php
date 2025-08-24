@@ -92,7 +92,7 @@ add_action('woocommerce_after_shipping_rate', function($method, $index) {
     }
     echo '<div class="other-days-date-wrap" style="display:none; margin:8px 0 0 24px;" data-rate-id="' . esc_attr($method->id) . '">';
     echo '<label for="other_days_date" style="display:block; margin-bottom:4px;">' . esc_html__('Select delivery date', 'shipping-plugin') . '</label>';
-    // Visible field has a different name; we sync it to a hidden field to persist across fragment refreshes
+    // Use a visible name that won't collide across multiple rates; hidden field will carry the posted value
     echo '<input type="date" id="other_days_date" class="sp-other-days-date" name="other_days_date_visible" min="' . esc_attr(gmdate('Y-m-d')) . '" />';
     echo '</div>';
 }, 10, 2);
@@ -140,18 +140,19 @@ add_action('wp_enqueue_scripts', function() {
             }
             document.body.addEventListener('change', function(e){ if(e.target && e.target.name && e.target.name.indexOf('shipping_method')===0){ toggleOtherDays(); }});
             document.body.addEventListener('change', function(e){ if(e.target && e.target.classList && e.target.classList.contains('sp-other-days-date')){ spSyncDateVisibleHidden(); }});
+            document.body.addEventListener('input', function(e){ if(e.target && e.target.classList && e.target.classList.contains('sp-other-days-date')){ spSyncDateVisibleHidden(); }});
             // Sync right before submission as well
             jQuery('form.checkout').on('checkout_place_order', function(){ spSyncDateVisibleHidden(); });
             toggleOtherDays();
             jQuery( document.body ).on('updated_checkout', function(){ toggleOtherDays(); });
         });";
-    wp_register_script('sp-other-days-toggle', '', [], null, true);
+    wp_register_script('sp-other-days-toggle', '', ['jquery'], null, true);
     wp_enqueue_script('sp-other-days-toggle');
     wp_add_inline_script('sp-other-days-toggle', $js);
 });
 
-// Output a hidden field to persist the selected date across fragment refreshes
-add_action('woocommerce_before_checkout_form', function() {
+// Output a hidden field INSIDE the checkout form to persist the selected date across fragment refreshes
+add_action('woocommerce_checkout_after_order_review', function() {
     if (!function_exists('is_checkout') || !is_checkout()) return;
     echo '<input type="hidden" id="other_days_date_hidden" name="other_days_date" value="" />';
 }, 15);
@@ -161,7 +162,12 @@ add_action('woocommerce_checkout_process', function() {
     if (empty($_POST['shipping_method'][0])) return;
     $selected = wc_clean(wp_unslash($_POST['shipping_method'][0]));
     if (strpos($selected, 'other_days_delivery') === 0) {
-        $date = isset($_POST['other_days_date']) ? wc_clean(wp_unslash($_POST['other_days_date'])) : '';
+        $date = '';
+        if (isset($_POST['other_days_date'])) {
+            $date = wc_clean(wp_unslash($_POST['other_days_date']));
+        } elseif (isset($_POST['other_days_date_visible'])) {
+            $date = wc_clean(wp_unslash($_POST['other_days_date_visible']));
+        }
         if (empty($date)) {
             wc_add_notice(__('Please select a delivery date for Other Days.', 'shipping-plugin'), 'error');
         }
@@ -171,10 +177,13 @@ add_action('woocommerce_checkout_process', function() {
 // Save the selected date to order meta when 'Other Days' is used
 add_action('woocommerce_checkout_create_order', function($order, $data) {
     if (!empty($_POST['shipping_method'][0]) && strpos(wc_clean(wp_unslash($_POST['shipping_method'][0])), 'other_days_delivery') === 0) {
+        $date = '';
         if (!empty($_POST['other_days_date'])) {
             $date = wc_clean(wp_unslash($_POST['other_days_date']));
-            $order->update_meta_data('_delivery_date', $date);
+        } elseif (!empty($_POST['other_days_date_visible'])) {
+            $date = wc_clean(wp_unslash($_POST['other_days_date_visible']));
         }
+        if (!empty($date)) { $order->update_meta_data('_delivery_date', $date); }
     }
 }, 10, 2);
 
