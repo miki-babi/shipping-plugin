@@ -6,7 +6,7 @@ class Express_Delivery extends WC_Shipping_Method {
         $this->id = 'express_delivery';
         $this->method_title = 'Express Delivery';
         $this->method_description = 'Delivery in 1-2 hours';
-        $this->enabled = "no";
+        $this->enabled = "yes";
         $this->title = "Express Delivery (1-2 hours)";
         $this->init();
     }
@@ -73,6 +73,24 @@ class Express_Delivery extends WC_Shipping_Method {
             'label' => $this->title,
             'cost' => $cost,
         ]);
+    }
+
+    /**
+     * Limit Express Delivery availability by time window.
+     * Default window: 09:00–17:00 (site local time). Adjustable via 'sp_express_hours' filter.
+     */
+    public function is_available($package) {
+        if (!parent::is_available($package)) {
+            return false;
+        }
+        // Allow theme/plugins to override hours: ['start' => 9, 'end' => 17]
+        $hours = apply_filters('sp_express_hours', [ 'start' => 9, 'end' => 17 ]);
+        $start = isset($hours['start']) ? intval($hours['start']) : 9;
+        $end   = isset($hours['end']) ? intval($hours['end']) : 17;
+
+        // Current hour in site timezone
+        $hour = intval(current_time('H'));
+        return ($hour >= $start && $hour < $end);
     }
     
 }
