@@ -46,7 +46,7 @@ class Next_Day_Delivery extends WC_Shipping_Method {
     public function calculate_shipping($package = []) {
         // Metrics
         $weight   = floatval(WC()->cart ? WC()->cart->get_cart_contents_weight() : 0);
-        $distance = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 0.0;
+        $distance = function_exists('sp_get_distance_km') ? sp_get_distance_km() : (isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 0.0);
 
         // Free override
         if ($this->get_option('is_free', 'no') === 'yes') {

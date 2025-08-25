@@ -87,6 +87,18 @@ function sp_select_mode($weight, $distance, $modes) {
     return $eligible[0];
 }
 
+// Standardized distance reader (km) from cookie
+function sp_get_distance_km() {
+    if (!isset($_COOKIE['delivery_distance'])) {
+        return 0.0;
+    }
+    $val = floatval($_COOKIE['delivery_distance']);
+    if (!is_finite($val)) {
+        return 0.0;
+    }
+    return max(0.0, $val);
+}
+
 // Admin menu (enable settings page)
 add_action('admin_menu', function() {
     add_submenu_page(
