@@ -65,21 +65,21 @@ class Express_Delivery extends WC_Shipping_Method {
                 'label' => 'Only offer Express during specified hours',
                 'default' => 'yes',
             ],
-            'start_hour' => [
-                'title' => 'Start hour (0-23)',
-                'type' => 'number',
-                'custom_attributes' => [ 'min' => 0, 'max' => 23, 'step' => 1 ],
-                'default' => '9',
+            'start_time' => [
+                'title' => 'Start time',
+                'type' => 'time',
+                'default' => '09:00',
+                'placeholder' => 'HH:MM',
                 'desc_tip' => true,
-                'description' => 'Hour of day (site timezone) when Express becomes available.',
+                'description' => 'Time of day (site timezone) when Express becomes available (e.g., 09:00).',
             ],
-            'end_hour' => [
-                'title' => 'End hour (0-23)',
-                'type' => 'number',
-                'custom_attributes' => [ 'min' => 0, 'max' => 23, 'step' => 1 ],
-                'default' => '17',
+            'end_time' => [
+                'title' => 'End time',
+                'type' => 'time',
+                'default' => '17:00',
+                'placeholder' => 'HH:MM',
                 'desc_tip' => true,
-                'description' => 'Hour of day (site timezone) when Express stops being available.',
+                'description' => 'Time of day (site timezone) when Express stops being available (e.g., 17:00).',
             ],
         ];
     }
@@ -119,23 +119,114 @@ class Express_Delivery extends WC_Shipping_Method {
         if (!$limit) {
             return true;
         }
-        // Read hours from settings with sane defaults
-        $start = intval($this->get_option('start_hour', 9));
-        $end   = intval($this->get_option('end_hour', 17));
-        // Allow theme/plugins to override via filter
-        $hours = apply_filters('sp_express_hours', [ 'start' => $start, 'end' => $end ]);
-        $start = isset($hours['start']) ? intval($hours['start']) : 9;
-        $end   = isset($hours['end']) ? intval($hours['end']) : 17;
-
-        // Current hour in site timezone
-        $hour = intval(current_time('H'));
-        // Handle normal daytime window; if start == end treat as disabled window
-        if ($start === $end) { return false; }
-        if ($start < $end) {
-            return ($hour >= $start && $hour < $end);
+        // Read times from settings with sane defaults
+        // Back-compat: honor legacy start_hour/end_hour if time fields not present
+        $settings = is_array($this->settings) ? $this->settings : [];
+        if (array_key_exists('start_time', $settings)) {
+            $start_str = (string)$this->get_option('start_time', '09:00');
+        } else {
+            $legacy_start = $this->get_option('start_hour', 9);
+            $start_str = sprintf('%02d:00', intval($legacy_start));
         }
-        // Overnight window (e.g., 22 -> 6)
-        return ($hour >= $start || $hour < $end);
+        if (array_key_exists('end_time', $settings)) {
+            $end_str = (string)$this->get_option('end_time', '17:00');
+        } else {
+            $legacy_end = $this->get_option('end_hour', 17);
+            $end_str = sprintf('%02d:00', intval($legacy_end));
+        }
+        // Allow theme/plugins to override via filter. Back-compat: integers 0-23 mean hours.
+        $hours = apply_filters('sp_express_hours', [ 'start' => $start_str, 'end' => $end_str ]);
+        if (isset($hours['start']) && is_int($hours['start']) && isset($hours['end']) && is_int($hours['end'])) {
+            $start_str = sprintf('%02d:00', max(0, min(23, $hours['start'])));
+            $end_str   = sprintf('%02d:00', max(0, min(23, $hours['end'])));
+        } else {
+            $start_str = isset($hours['start']) ? (string)$hours['start'] : $start_str;
+            $end_str   = isset($hours['end']) ? (string)$hours['end'] : $end_str;
+        }
+
+        // Parse HH:MM to minutes since midnight, with validation
+        $start_min = $this->parse_time_to_minutes($start_str, 9 * 60);
+        $end_min   = $this->parse_time_to_minutes($end_str, 17 * 60);
+
+        // Current time (site timezone) as minutes since midnight
+        $now_ts = current_time('timestamp');
+        $cur_h  = intval(date_i18n('G', $now_ts));
+        $cur_m  = intval(date_i18n('i', $now_ts));
+        $now_min = ($cur_h * 60) + $cur_m;
+
+        // If start == end treat as disabled window
+        if ($start_min === $end_min) { return false; }
+        if ($start_min < $end_min) {
+            return ($now_min >= $start_min && $now_min < $end_min);
+        }
+        // Overnight window (e.g., 22:00 -> 06:00)
+        return ($now_min >= $start_min || $now_min < $end_min);
+    }
+
+    protected function parse_time_to_minutes($value, $default) {
+        if (!is_string($value)) { return $default; }
+        if (!preg_match('/^(?:[01]?\d|2[0-3]):[0-5]\d$/', $value)) { return $default; }
+        list($h, $m) = explode(':', $value, 2);
+        return intval($h) * 60 + intval($m);
+    }
+
+    protected function sanitize_time_string($value, $fallback) {
+        $val = trim((string)$value);
+        if (preg_match('/^(?:[01]?\d|2[0-3]):[0-5]\d$/', $val)) {
+            // Normalize to HH:MM
+            list($h, $m) = explode(':', $val, 2);
+            return sprintf('%02d:%02d', intval($h), intval($m));
+        }
+        // Accept pure hour like "9" or "17" and normalize
+        if (preg_match('/^(?:[01]?\d|2[0-3])$/', $val)) {
+            return sprintf('%02d:00', intval($val));
+        }
+        return $fallback;
+    }
+
+    // Render a proper HTML5 time input in WooCommerce settings
+    public function generate_time_html($key, $data) {
+        $defaults = [
+            'title'             => '',
+            'desc_tip'          => false,
+            'description'       => '',
+            'custom_attributes' => [],
+            'placeholder'       => 'HH:MM',
+            'default'           => '',
+        ];
+        $data = wp_parse_args($data, $defaults);
+        $field_key = $this->get_field_key($key);
+        $value = $this->get_option($key, $data['default']);
+        $description = $this->get_field_description($data);
+        $attrs = $this->get_custom_attribute_html(array_merge(['step' => '60'], $data['custom_attributes']));
+
+        ob_start();
+        ?>
+        <tr valign="top">
+            <th scope="row" class="titledesc">
+                <label for="<?php echo esc_attr($field_key); ?>"><?php echo wp_kses_post($data['title']); ?></label>
+                <?php echo $description['tooltip_html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+            </th>
+            <td class="forminp">
+                <input
+                    type="time"
+                    id="<?php echo esc_attr($field_key); ?>"
+                    name="<?php echo esc_attr($field_key); ?>"
+                    value="<?php echo esc_attr($value); ?>"
+                    placeholder="<?php echo esc_attr($data['placeholder']); ?>"
+                    <?php echo $attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                />
+                <?php echo $description['description']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+            </td>
+        </tr>
+        <?php
+        return ob_get_clean();
+    }
+
+    // Sanitize values for custom 'time' field type when saving
+    public function validate_time_field($key, $value) {
+        $default = ($key === 'start_time') ? '09:00' : '17:00';
+        return $this->sanitize_time_string($value, $default);
     }
     
 }
