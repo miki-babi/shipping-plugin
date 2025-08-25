@@ -24,21 +24,64 @@ class Same_Day_Delivery extends WC_Shipping_Method {
                 'type' => 'text',
                 'default' => 'Same Day Delivery'
             ],
-            'cost' => [
-                'title' => 'Cost',
+            'enable_advanced_pricing' => [
+                'title' => 'Enable weight/distance pricing',
+                'type' => 'checkbox',
+                'label' => 'Use base + per kg + per km',
+                'default' => 'no',
+            ],
+            'base_fee' => [
+                'title' => 'Base fee',
                 'type' => 'price',
-                'default' => '70'
+                'default' => '75',
+            ],
+            'per_kg' => [
+                'title' => 'Cost per kg',
+                'type' => 'price',
+                'default' => '0',
+            ],
+            'per_km' => [
+                'title' => 'Cost per km',
+                'type' => 'price',
+                'default' => '0',
+            ],
+            'min_cost' => [
+                'title' => 'Minimum cost',
+                'type' => 'price',
+                'default' => '0',
+            ],
+            'max_cost' => [
+                'title' => 'Maximum cost',
+                'type' => 'price',
+                'default' => '',
+                'description' => 'Leave empty for no cap',
             ],
         ];
     }
 
     public function calculate_shipping($package = []) {
-        // Determine current site-local time and compare to 11:30 AM
-        $now = current_time('timestamp');
-        $today = date('Y-m-d', $now);
-        $cutoff = strtotime($today . ' 11:30', $now);
+        $useAdvanced = $this->get_option('enable_advanced_pricing', 'no') === 'yes';
+        if ($useAdvanced) {
+            $base   = floatval($this->get_option('base_fee', '75'));
+            $perKg  = floatval($this->get_option('per_kg', '0'));
+            $perKm  = floatval($this->get_option('per_km', '0'));
+            $min    = floatval($this->get_option('min_cost', '0'));
+            $maxOpt = $this->get_option('max_cost', '');
+            $max    = ($maxOpt === '' ? null : floatval($maxOpt));
 
-        $cost = ($now <= $cutoff) ? 75.00 : 150.00; // After 11:30, same as Express
+            $weight = floatval(WC()->cart ? WC()->cart->get_cart_contents_weight() : 0);
+            $distance = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 0.0;
+
+            $cost = $base + ($weight * $perKg) + ($distance * $perKm);
+            if ($cost < $min) { $cost = $min; }
+            if (!is_null($max) && $max >= 0 && $cost > $max) { $cost = $max; }
+        } else {
+            // Previous behavior based on cutoff time
+            $now = current_time('timestamp');
+            $today = date('Y-m-d', $now);
+            $cutoff = strtotime($today . ' 11:30', $now);
+            $cost = ($now <= $cutoff) ? 75.00 : 150.00; // After 11:30, same as Express
+        }
 
         $rate = [
             'id' => $this->id,

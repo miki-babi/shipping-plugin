@@ -24,22 +24,61 @@ class Express_Delivery extends WC_Shipping_Method {
                 'type' => 'text',
                 'default' => 'Express Delivery (1-2 hours)'
             ],
-            'base_cost' => [
-                'title' => 'Base Cost',
-                'type' => 'price',
-                'default' => '50'
+            'enable_advanced_pricing' => [
+                'title' => 'Enable weight/distance pricing',
+                'type' => 'checkbox',
+                'label' => 'Use base + per kg + per km',
+                'default' => 'no',
             ],
-            'cost_per_km' => [
-                'title' => 'Cost per KM',
+            'base_fee' => [
+                'title' => 'Base fee',
                 'type' => 'price',
-                'default' => '10'
+                'default' => '150',
+            ],
+            'per_kg' => [
+                'title' => 'Cost per kg',
+                'type' => 'price',
+                'default' => '0',
+            ],
+            'per_km' => [
+                'title' => 'Cost per km',
+                'type' => 'price',
+                'default' => '0',
+            ],
+            'min_cost' => [
+                'title' => 'Minimum cost',
+                'type' => 'price',
+                'default' => '0',
+            ],
+            'max_cost' => [
+                'title' => 'Maximum cost',
+                'type' => 'price',
+                'default' => '',
+                'description' => 'Leave empty for no cap',
             ],
         ];
     }
 
     public function calculate_shipping($package = []) {
-        // Express Delivery is a flat rate regardless of time: Br. 150.00
-        $cost = 150.00;
+        $useAdvanced = $this->get_option('enable_advanced_pricing', 'no') === 'yes';
+        if ($useAdvanced) {
+            $base   = floatval($this->get_option('base_fee', '150'));
+            $perKg  = floatval($this->get_option('per_kg', '0'));
+            $perKm  = floatval($this->get_option('per_km', '0'));
+            $min    = floatval($this->get_option('min_cost', '0'));
+            $maxOpt = $this->get_option('max_cost', '');
+            $max    = ($maxOpt === '' ? null : floatval($maxOpt));
+
+            $weight = floatval(WC()->cart ? WC()->cart->get_cart_contents_weight() : 0);
+            $distance = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 0.0;
+
+            $cost = $base + ($weight * $perKg) + ($distance * $perKm);
+            if ($cost < $min) { $cost = $min; }
+            if (!is_null($max) && $max >= 0 && $cost > $max) { $cost = $max; }
+        } else {
+            // Fallback to previous flat rate
+            $cost = 150.00;
+        }
 
         $this->add_rate([
             'id' => $this->id,
