@@ -197,15 +197,15 @@ class Express_Delivery extends WC_Shipping_Method {
         $data = wp_parse_args($data, $defaults);
         $field_key = $this->get_field_key($key);
         $value = $this->get_option($key, $data['default']);
-        $description = $this->get_field_description($data);
-        $attrs = $this->get_custom_attribute_html(array_merge(['step' => '60'], $data['custom_attributes']));
+        $desc_parts = $this->build_field_description_parts($data);
+        $attrs = $this->build_custom_attribute_html(array_merge(['step' => '60'], $data['custom_attributes']));
 
         ob_start();
         ?>
         <tr valign="top">
             <th scope="row" class="titledesc">
                 <label for="<?php echo esc_attr($field_key); ?>"><?php echo wp_kses_post($data['title']); ?></label>
-                <?php echo $description['tooltip_html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                <?php echo $desc_parts['tooltip_html']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             </th>
             <td class="forminp">
                 <input
@@ -216,7 +216,7 @@ class Express_Delivery extends WC_Shipping_Method {
                     placeholder="<?php echo esc_attr($data['placeholder']); ?>"
                     <?php echo $attrs; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                 />
-                <?php echo $description['description']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                <?php echo $desc_parts['description']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             </td>
         </tr>
         <?php
@@ -227,6 +227,41 @@ class Express_Delivery extends WC_Shipping_Method {
     public function validate_time_field($key, $value) {
         $default = ($key === 'start_time') ? '09:00' : '17:00';
         return $this->sanitize_time_string($value, $default);
+    }
+
+    // Local fallback: build attribute HTML from array
+    protected function build_custom_attribute_html($attributes) {
+        if (empty($attributes) || !is_array($attributes)) { return ''; }
+        $pairs = [];
+        foreach ($attributes as $attr => $val) {
+            if ($val === true) {
+                $pairs[] = sprintf('%s', esc_attr($attr));
+            } elseif ($val !== false && $val !== null) {
+                $pairs[] = sprintf('%s="%s"', esc_attr($attr), esc_attr((string)$val));
+            }
+        }
+        return implode(' ', $pairs);
+    }
+
+    // Local fallback: build description and tooltip parts similar to WC_Settings_API
+    protected function build_field_description_parts($data) {
+        $tooltip_html = '';
+        $description_html = '';
+        $desc_tip = !empty($data['desc_tip']);
+        $desc = isset($data['description']) ? (string)$data['description'] : '';
+        if ($desc_tip && $desc) {
+            if (function_exists('wc_help_tip')) {
+                $tooltip_html = wc_help_tip($desc);
+            } else {
+                $tooltip_html = '<span class="woocommerce-help-tip" title="' . esc_attr($desc) . '">?</span>';
+            }
+        } elseif (!$desc_tip && $desc) {
+            $description_html = '<p class="description">' . wp_kses_post($desc) . '</p>';
+        }
+        return [
+            'tooltip_html' => $tooltip_html,
+            'description'  => $description_html,
+        ];
     }
     
 }
