@@ -85,24 +85,36 @@ class Express_Delivery extends WC_Shipping_Method {
     }
 
     public function calculate_shipping($package = []) {
-        $base   = floatval($this->get_option('base_fee', '150'));
-        $perKg  = floatval($this->get_option('per_kg', '0'));
-        $perKm  = floatval($this->get_option('per_km', '0'));
-        $min    = floatval($this->get_option('min_cost', '0'));
-        $maxOpt = $this->get_option('max_cost', '');
-        $max    = ($maxOpt === '' ? null : floatval($maxOpt));
-
-        $weight = floatval(WC()->cart ? WC()->cart->get_cart_contents_weight() : 0);
+        // Get current package metrics
+        $weight   = floatval(WC()->cart ? WC()->cart->get_cart_contents_weight() : 0);
         $distance = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 0.0;
 
-        $cost = $base + ($weight * $perKg) + ($distance * $perKm);
-        if ($cost < $min) { $cost = $min; }
-        if (!is_null($max) && $max >= 0 && $cost > $max) { $cost = $max; }
+        // Define pricing rules (ordered by priority)
+        $rules = [
+            [ 'max_weight' => 3,   'max_distance' => 5,  'base_price' => 80,  'price_per_km' => 25 ],
+            [ 'max_weight' => 10,  'max_distance' => 10, 'base_price' => 150, 'price_per_km' => 25 ],
+            [ 'max_weight' => 300, 'max_distance' => 25, 'base_price' => 200, 'price_per_km' => 25 ],
+        ];
+
+        $matched_rule = null;
+        foreach ($rules as $rule) {
+            if ($weight <= $rule['max_weight'] && $distance <= $rule['max_distance']) {
+                $matched_rule = $rule;
+                break;
+            }
+        }
+
+        if (!$matched_rule) {
+            // No matching rule -> do not offer this method
+            return;
+        }
+
+        $cost = floatval($matched_rule['base_price']) + ($distance * floatval($matched_rule['price_per_km']));
 
         $this->add_rate([
-            'id' => $this->id,
+            'id'    => $this->id,
             'label' => $this->title,
-            'cost' => $cost,
+            'cost'  => $cost,
         ]);
     }
 
