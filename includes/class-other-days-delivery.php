@@ -17,6 +17,7 @@ class Other_Days_Delivery extends WC_Shipping_Method {
         // Load persisted settings for common props
         $this->enabled = $this->get_option('enabled', $this->enabled);
         $this->title   = $this->get_option('title', $this->title);
+        $this->is_free = $this->get_option('is_free', 'no');
         add_action('woocommerce_update_options_shipping_' . $this->id, [$this, 'process_admin_options']);
     }
 
@@ -33,6 +34,12 @@ class Other_Days_Delivery extends WC_Shipping_Method {
                 'type' => 'text',
                 'default' => 'Other Days'
             ],
+            'is_free' => [
+                'title' => 'Free shipping',
+                'type'  => 'checkbox',
+                'label' => 'Make this method free (cost 0)',
+                'default' => 'no',
+            ],
         ];
     }
 
@@ -40,6 +47,16 @@ class Other_Days_Delivery extends WC_Shipping_Method {
         // Get current package metrics
         $weight   = floatval(WC()->cart ? WC()->cart->get_cart_contents_weight() : 0);
         $distance = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 0.0;
+
+        // Free override
+        if ($this->get_option('is_free', 'no') === 'yes') {
+            $this->add_rate([
+                'id'    => $this->id,
+                'label' => $this->title,
+                'cost'  => 0,
+            ]);
+            return;
+        }
 
         // Use shared delivery modes and choose cheapest eligible
         if (!function_exists('sp_get_delivery_modes') || !function_exists('sp_select_mode')) {

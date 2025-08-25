@@ -37,32 +37,101 @@ class Express_Delivery extends WC_Shipping_Method {
             'enable_time_window' => [
                 'title' => 'Limit by time window',
                 'type' => 'checkbox',
-                'label' => 'Only offer Express during specified hours',
-                'default' => 'yes',
+                'label' => 'Only offer Express between start and end times',
+                'default' => 'no',
             ],
             'start_time' => [
-                'title' => 'Start time',
-                'type' => 'time',
+                'title' => 'Start time (HH:MM)',
+                'type' => 'text',
                 'default' => '09:00',
-                'placeholder' => 'HH:MM',
                 'desc_tip' => true,
                 'description' => 'Time of day (site timezone) when Express becomes available (e.g., 09:00).',
             ],
             'end_time' => [
-                'title' => 'End time',
-                'type' => 'time',
+                'title' => 'End time (HH:MM)',
+                'type' => 'text',
                 'default' => '17:00',
-                'placeholder' => 'HH:MM',
                 'desc_tip' => true,
                 'description' => 'Time of day (site timezone) when Express stops being available (e.g., 17:00).',
+            ],
+            'is_free' => [
+                'title' => 'Free shipping',
+                'type'  => 'checkbox',
+                'label' => 'Make this method free (cost 0)',
+                'default' => 'no',
             ],
         ];
     }
 
     public function calculate_shipping($package = []) {
-        // Get current package metrics
+        // Metrics
         $weight   = floatval(WC()->cart ? WC()->cart->get_cart_contents_weight() : 0);
         $distance = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 0.0;
+
+        // Respect optional time window before computing cost
+        $enable_window = $this->get_option('enable_time_window', 'no') === 'yes';
+        if ($enable_window) {
+            if (!parent::is_available($package)) {
+                return false;
+            }
+            // If time window is disabled in settings, allow method (still subject to other conditions)
+            $limit = $this->get_option('enable_time_window', 'no') === 'yes';
+            if (!$limit) {
+                return true;
+            }
+            // Read times from settings with sane defaults
+            // Back-compat: honor legacy start_hour/end_hour if time fields not present
+            $settings = is_array($this->settings) ? $this->settings : [];
+            if (array_key_exists('start_time', $settings)) {
+                $start_str = (string)$this->get_option('start_time', '09:00');
+            } else {
+                $legacy_start = $this->get_option('start_hour', 9);
+                $start_str = sprintf('%02d:00', intval($legacy_start));
+            }
+            if (array_key_exists('end_time', $settings)) {
+                $end_str = (string)$this->get_option('end_time', '17:00');
+            } else {
+                $legacy_end = $this->get_option('end_hour', 17);
+                $end_str = sprintf('%02d:00', intval($legacy_end));
+            }
+            // Allow theme/plugins to override via filter. Back-compat: integers 0-23 mean hours.
+            $hours = apply_filters('sp_express_hours', [ 'start' => $start_str, 'end' => $end_str ]);
+            if (isset($hours['start']) && is_int($hours['start']) && isset($hours['end']) && is_int($hours['end'])) {
+                $start_str = sprintf('%02d:00', max(0, min(23, $hours['start'])));
+                $end_str   = sprintf('%02d:00', max(0, min(23, $hours['end'])));
+            } else {
+                $start_str = isset($hours['start']) ? (string)$hours['start'] : $start_str;
+                $end_str   = isset($hours['end']) ? (string)$hours['end'] : $end_str;
+            }
+
+            // Parse HH:MM to minutes since midnight, with validation
+            $start_min = $this->parse_time_to_minutes($start_str, 9 * 60);
+            $end_min   = $this->parse_time_to_minutes($end_str, 17 * 60);
+
+            // Current time (site timezone) as minutes since midnight
+            $now_ts = current_time('timestamp');
+            $cur_h  = intval(date_i18n('G', $now_ts));
+            $cur_m  = intval(date_i18n('i', $now_ts));
+            $now_min = ($cur_h * 60) + $cur_m;
+
+            // If start == end treat as disabled window
+            if ($start_min === $end_min) { return false; }
+            if ($start_min < $end_min) {
+                return ($now_min >= $start_min && $now_min < $end_min);
+            }
+            // Overnight window (e.g., 22:00 -> 06:00)
+            return ($now_min >= $start_min || $now_min < $end_min);
+        }
+
+        // Free override
+        if ($this->get_option('is_free', 'no') === 'yes') {
+            $this->add_rate([
+                'id'    => $this->id,
+                'label' => $this->title,
+                'cost'  => 0,
+            ]);
+            return;
+        }
 
         // Use shared delivery modes and choose cheapest eligible
         if (!function_exists('sp_get_delivery_modes') || !function_exists('sp_select_mode')) {
@@ -91,7 +160,7 @@ class Express_Delivery extends WC_Shipping_Method {
             return false;
         }
         // If time window is disabled in settings, allow method (still subject to other conditions)
-        $limit = $this->get_option('enable_time_window', 'yes') === 'yes';
+        $limit = $this->get_option('enable_time_window', 'no') === 'yes';
         if (!$limit) {
             return true;
         }
