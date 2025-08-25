@@ -13,6 +13,83 @@
 
 if (!defined('ABSPATH')) exit;
 
+// -------------------------
+// Plugin Settings (admin)
+// -------------------------
+function sp_get_settings() {
+    $defaults = [
+        'enable_other_days_date' => 'yes',
+        'require_other_days_date' => 'yes',
+        'other_days_date_label' => __('Select delivery date', 'shipping-plugin'),
+        'min_lead_days' => 0,
+    ];
+    $opts = get_option('sp_settings', []);
+    if (!is_array($opts)) $opts = [];
+    return wp_parse_args($opts, $defaults);
+}
+
+add_action('admin_menu', function() {
+    add_submenu_page(
+        'woocommerce',
+        __('Shipping Plugin Settings', 'shipping-plugin'),
+        __('Shipping Plugin', 'shipping-plugin'),
+        'manage_woocommerce',
+        'sp-settings',
+        'sp_render_settings_page'
+    );
+});
+
+function sp_render_settings_page() {
+    if (!current_user_can('manage_woocommerce')) return;
+    if (isset($_POST['sp_settings_nonce']) && wp_verify_nonce($_POST['sp_settings_nonce'], 'sp_save_settings')) {
+        $new = [
+            'enable_other_days_date' => !empty($_POST['enable_other_days_date']) ? 'yes' : 'no',
+            'require_other_days_date' => !empty($_POST['require_other_days_date']) ? 'yes' : 'no',
+            'other_days_date_label' => isset($_POST['other_days_date_label']) ? sanitize_text_field($_POST['other_days_date_label']) : '',
+            'min_lead_days' => isset($_POST['min_lead_days']) ? max(0, intval($_POST['min_lead_days'])) : 0,
+        ];
+        update_option('sp_settings', $new);
+        echo '<div class="updated"><p>' . esc_html__('Settings saved.', 'shipping-plugin') . '</p></div>';
+    }
+    $s = sp_get_settings();
+    ?>
+    <div class="wrap">
+        <h1><?php echo esc_html__('Shipping Plugin Settings', 'shipping-plugin'); ?></h1>
+        <form method="post">
+            <?php wp_nonce_field('sp_save_settings', 'sp_settings_nonce'); ?>
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><?php echo esc_html__('Enable date for Other Days', 'shipping-plugin'); ?></th>
+                    <td>
+                        <label><input type="checkbox" name="enable_other_days_date" value="1" <?php checked($s['enable_other_days_date'], 'yes'); ?>> <?php echo esc_html__('Enable', 'shipping-plugin'); ?></label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php echo esc_html__('Require date for Other Days', 'shipping-plugin'); ?></th>
+                    <td>
+                        <label><input type="checkbox" name="require_other_days_date" value="1" <?php checked($s['require_other_days_date'], 'yes'); ?>> <?php echo esc_html__('Require', 'shipping-plugin'); ?></label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php echo esc_html__('Date field label', 'shipping-plugin'); ?></th>
+                    <td>
+                        <input type="text" name="other_days_date_label" class="regular-text" value="<?php echo esc_attr($s['other_days_date_label']); ?>">
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php echo esc_html__('Minimum lead days', 'shipping-plugin'); ?></th>
+                    <td>
+                        <input type="number" min="0" name="min_lead_days" value="<?php echo esc_attr(intval($s['min_lead_days'])); ?>"> 
+                        <p class="description"><?php echo esc_html__('Number of days from today to start allowing selection (0 = today).', 'shipping-plugin'); ?></p>
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button(); ?>
+        </form>
+    </div>
+    <?php
+}
+
 add_action('woocommerce_shipping_init', function() {
     require_once __DIR__ . '/includes/class-express-delivery.php';
     require_once __DIR__ . '/includes/class-same-day-delivery.php';
@@ -90,10 +167,16 @@ add_action('woocommerce_after_shipping_rate', function($method, $index) {
     if (!isset($method->method_id) || $method->method_id !== 'other_days_delivery') {
         return;
     }
+    $settings = sp_get_settings();
+    if ($settings['enable_other_days_date'] !== 'yes') {
+        return; // Disabled via settings
+    }
+    $minDays = isset($settings['min_lead_days']) ? max(0, intval($settings['min_lead_days'])) : 0;
+    $minDate = gmdate('Y-m-d', strtotime('+' . $minDays . ' days'));
     echo '<div class="other-days-date-wrap" style="display:none; margin:8px 0 0 24px;" data-rate-id="' . esc_attr($method->id) . '">';
-    echo '<label for="other_days_date" style="display:block; margin-bottom:4px;">' . esc_html__('Select delivery date', 'shipping-plugin') . '</label>';
+    echo '<label for="other_days_date" style="display:block; margin-bottom:4px;">' . esc_html($settings['other_days_date_label']) . '</label>';
     // Use a visible name that won't collide across multiple rates; hidden field will carry the posted value
-    echo '<input type="date" id="other_days_date" class="sp-other-days-date" name="other_days_date_visible" min="' . esc_attr(gmdate('Y-m-d')) . '" />';
+    echo '<input type="date" id="other_days_date" class="sp-other-days-date" name="other_days_date_visible" min="' . esc_attr($minDate) . '" />';
     echo '</div>';
 }, 10, 2);
 
@@ -162,13 +245,14 @@ add_action('woocommerce_checkout_process', function() {
     if (empty($_POST['shipping_method'][0])) return;
     $selected = wc_clean(wp_unslash($_POST['shipping_method'][0]));
     if (strpos($selected, 'other_days_delivery') === 0) {
+        $settings = sp_get_settings();
         $date = '';
         if (isset($_POST['other_days_date'])) {
             $date = wc_clean(wp_unslash($_POST['other_days_date']));
         } elseif (isset($_POST['other_days_date_visible'])) {
             $date = wc_clean(wp_unslash($_POST['other_days_date_visible']));
         }
-        if (empty($date)) {
+        if ($settings['require_other_days_date'] === 'yes' && empty($date)) {
             wc_add_notice(__('Please select a delivery date for Other Days.', 'shipping-plugin'), 'error');
         }
     }
