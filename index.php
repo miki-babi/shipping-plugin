@@ -95,6 +95,7 @@ add_action('woocommerce_shipping_init', function() {
     require_once __DIR__ . '/includes/class-same-day-delivery.php';
     require_once __DIR__ . '/includes/class-next-day-delivery.php';
     require_once __DIR__ . '/includes/class-other-days-delivery.php';
+    require_once __DIR__ . '/includes/class-two-day-delivery.php';
 });
 
 add_filter('woocommerce_shipping_methods', function($methods) {
@@ -102,6 +103,7 @@ add_filter('woocommerce_shipping_methods', function($methods) {
     $methods['express_delivery'] = 'Express_Delivery';
     $methods['same_day_delivery'] = 'Same_Day_Delivery';
     $methods['other_days_delivery'] = 'Other_Days_Delivery';
+    $methods['two_day_delivery'] = 'Two_Day_Delivery';
     return $methods;
 });
 

@@ -24,12 +24,6 @@ class Next_Day_Delivery extends WC_Shipping_Method {
                 'type' => 'text',
                 'default' => 'Next Day Delivery'
             ],
-            'enable_advanced_pricing' => [
-                'title' => 'Enable weight/distance pricing',
-                'type' => 'checkbox',
-                'label' => 'Use base + per kg + per km',
-                'default' => 'no',
-            ],
             'base_fee' => [
                 'title' => 'Base fee',
                 'type' => 'price',
@@ -56,34 +50,24 @@ class Next_Day_Delivery extends WC_Shipping_Method {
                 'default' => '',
                 'description' => 'Leave empty for no cap',
             ],
-            'fallback_cost' => [
-                'title' => 'Fallback flat rate',
-                'type' => 'price',
-                'default' => '75',
-                'description' => 'Used when advanced pricing is disabled.',
-            ],
         ];
     }
 
     public function calculate_shipping($package = []) {
-        $useAdvanced = $this->get_option('enable_advanced_pricing', 'no') === 'yes';
-        if ($useAdvanced) {
-            $base   = floatval($this->get_option('base_fee', '75'));
-            $perKg  = floatval($this->get_option('per_kg', '0'));
-            $perKm  = floatval($this->get_option('per_km', '0'));
-            $min    = floatval($this->get_option('min_cost', '0'));
-            $maxOpt = $this->get_option('max_cost', '');
-            $max    = ($maxOpt === '' ? null : floatval($maxOpt));
+        $base   = floatval($this->get_option('base_fee', '75'));
+        $perKg  = floatval($this->get_option('per_kg', '0'));
+        $perKm  = floatval($this->get_option('per_km', '0'));
+        $min    = floatval($this->get_option('min_cost', '0'));
+        $maxOpt = $this->get_option('max_cost', '');
+        $max    = ($maxOpt === '' ? null : floatval($maxOpt));
 
-            $weight = floatval(WC()->cart ? WC()->cart->get_cart_contents_weight() : 0);
-            $distance = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 0.0;
+        $weight = floatval(WC()->cart ? WC()->cart->get_cart_contents_weight() : 0);
+        $distance = isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 0.0;
 
-            $cost = $base + ($weight * $perKg) + ($distance * $perKm);
-            if ($cost < $min) { $cost = $min; }
-            if (!is_null($max) && $max >= 0 && $cost > $max) { $cost = $max; }
-        } else {
-            $cost = floatval($this->get_option('fallback_cost', '75'));
-        }
+        $cost = $base + ($weight * $perKg) + ($distance * $perKm);
+        if ($cost < $min) { $cost = $min; }
+        if (!is_null($max) && $max >= 0 && $cost > $max) { $cost = $max; }
+        
         $rate = [
             'id' => $this->id,
             'label' => $this->title,

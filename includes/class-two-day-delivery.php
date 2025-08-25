@@ -1,13 +1,13 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-class Express_Delivery extends WC_Shipping_Method {
+class Two_Day_Delivery extends WC_Shipping_Method {
     public function __construct() {
-        $this->id = 'express_delivery';
-        $this->method_title = 'Express Delivery';
-        $this->method_description = 'Delivery in 1-2 hours';
-        $this->enabled = "no";
-        $this->title = "Express Delivery (1-2 hours)";
+        $this->id = 'two_day_delivery';
+        $this->method_title = 'Two Day Delivery';
+        $this->method_description = 'Delivery within two days';
+        $this->enabled = 'yes';
+        $this->title = 'Two Day Delivery';
         $this->init();
     }
 
@@ -22,12 +22,12 @@ class Express_Delivery extends WC_Shipping_Method {
             'title' => [
                 'title' => 'Title',
                 'type' => 'text',
-                'default' => 'Express Delivery (1-2 hours)'
+                'default' => 'Two Day Delivery'
             ],
             'base_fee' => [
                 'title' => 'Base fee',
                 'type' => 'price',
-                'default' => '150',
+                'default' => '50',
             ],
             'per_kg' => [
                 'title' => 'Cost per kg',
@@ -54,7 +54,7 @@ class Express_Delivery extends WC_Shipping_Method {
     }
 
     public function calculate_shipping($package = []) {
-        $base   = floatval($this->get_option('base_fee', '150'));
+        $base   = floatval($this->get_option('base_fee', '50'));
         $perKg  = floatval($this->get_option('per_kg', '0'));
         $perKm  = floatval($this->get_option('per_km', '0'));
         $min    = floatval($this->get_option('min_cost', '0'));
@@ -68,11 +68,11 @@ class Express_Delivery extends WC_Shipping_Method {
         if ($cost < $min) { $cost = $min; }
         if (!is_null($max) && $max >= 0 && $cost > $max) { $cost = $max; }
 
-        $this->add_rate([
+        $rate = [
             'id' => $this->id,
             'label' => $this->title,
             'cost' => $cost,
-        ]);
+        ];
+        $this->add_rate($rate);
     }
-    
 }
