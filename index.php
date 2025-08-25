@@ -28,16 +28,16 @@ function sp_get_settings() {
     return wp_parse_args($opts, $defaults);
 }
 
-add_action('admin_menu', function() {
-    add_submenu_page(
-        'woocommerce',
-        __('Shipping Plugin Settings', 'shipping-plugin'),
-        __('Shipping Plugin', 'shipping-plugin'),
-        'manage_woocommerce',
-        'sp-settings',
-        'sp_render_settings_page'
-    );
-});
+// add_action('admin_menu', function() {
+//     add_submenu_page(
+//         'woocommerce',
+//         __('Shipping Plugin Settings', 'shipping-plugin'),
+//         __('Shipping Plugin', 'shipping-plugin'),
+//         'manage_woocommerce',
+//         'sp-settings',
+//         'sp_render_settings_page'
+//     );
+// });
 
 function sp_render_settings_page() {
     if (!current_user_can('manage_woocommerce')) return;
