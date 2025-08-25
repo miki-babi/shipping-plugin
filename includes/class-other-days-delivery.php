@@ -14,11 +14,20 @@ class Other_Days_Delivery extends WC_Shipping_Method {
     function init() {
         $this->init_form_fields();
         $this->init_settings();
+        // Load persisted settings for common props
+        $this->enabled = $this->get_option('enabled', $this->enabled);
+        $this->title   = $this->get_option('title', $this->title);
         add_action('woocommerce_update_options_shipping_' . $this->id, [$this, 'process_admin_options']);
     }
 
     public function init_form_fields() {
         $this->form_fields = [
+            'enabled' => [
+                'title' => 'Enabled',
+                'type' => 'checkbox',
+                'label' => 'Enable this shipping method',
+                'default' => 'yes',
+            ],
             'title' => [
                 'title' => 'Title',
                 'type' => 'text',
