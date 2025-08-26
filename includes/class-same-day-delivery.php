@@ -19,29 +19,29 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         $this->method_description = 'Delivery within the same day';
         $this->enabled = "yes";
         $this->title = "Same Day Delivery";
-        $this->log_step('Constructor: defaults set (enabled=' . $this->enabled . ', title=' . $this->title . ')');
+        // $this->log_step('Constructor: defaults set (enabled=' . $this->enabled . ', title=' . $this->title . ')');
         $this->init();
         // $this->log_step('Constructor: end');
     }
 
     function init() {
-        $this->log_step('init(): start');
+        // $this->log_step('init(): start');
         $this->init_form_fields();
-        $this->log_step('init(): init_form_fields done');
+        // $this->log_step('init(): init_form_fields done');
         $this->init_settings();
-        $this->log_step('init(): init_settings done');
+        // $this->log_step('init(): init_settings done');
         // Load persisted settings for common props
         $this->enabled = $this->get_option('enabled', $this->enabled);
         $this->title   = $this->get_option('title', $this->title);
         $this->is_free = $this->get_option('is_free', 'no');
-        $this->log_step('init(): options loaded (enabled=' . $this->enabled . ', title=' . $this->title . ', is_free=' . $this->is_free . ')');
+        // $this->log_step('init(): options loaded (enabled=' . $this->enabled . ', title=' . $this->title . ', is_free=' . $this->is_free . ')');
         add_action('woocommerce_update_options_shipping_' . $this->id, [$this, 'process_admin_options']);
-        $this->log_step('init(): hook registered (woocommerce_update_options_shipping_' . $this->id . ')');
+        // $this->log_step('init(): hook registered (woocommerce_update_options_shipping_' . $this->id . ')');
         // $this->log_step('init(): end');
     }
 
     public function init_form_fields() {
-        $this->log_step('init_form_fields(): start');
+        // $this->log_step('init_form_fields(): start');
         $this->form_fields = [
             'enabled' => [
                 'title' => 'Enabled',
