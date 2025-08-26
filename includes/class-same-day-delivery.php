@@ -25,7 +25,7 @@ class Same_Day_Delivery extends WC_Shipping_Method {
     }
 
     function init() {
-        // $this->log_step('init(): start');
+        $this->log_step('init(): start');
         $this->init_form_fields();
         // $this->log_step('init(): init_form_fields done');
         $this->init_settings();
