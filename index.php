@@ -40,13 +40,13 @@ function sp_get_default_delivery_modes() {
         'motorbike' => [
             'max_weight'   => 15.0,
             'max_distance' => 12.0,
-            'base_price'   => 120.0,
+            'base_price'   => 1200.0,
             'price_per_km' => 22.0,
         ],
         'car' => [
             'max_weight'   => 300.0,
             'max_distance' => 25.0,
-            'base_price'   => 200.0,
+            'base_price'   => 2000.0,
             'price_per_km' => 25.0,
         ],
     ];
