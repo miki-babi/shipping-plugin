@@ -34,7 +34,7 @@ function sp_get_default_delivery_modes() {
         'bicycle' => [
             'max_weight'   => 3.0,
             'max_distance' => 5.0,
-            'base_price'   => 80.0,
+            'base_price'   => 800.0,
             'price_per_km' => 25.0,
         ],
         'motorbike' => [
