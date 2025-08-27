@@ -38,9 +38,19 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         add_action('woocommerce_update_options_shipping_' . $this->id, [$this, 'process_admin_options']);
         // $this->log_step('init(): hook registered (woocommerce_update_options_shipping_' . $this->id . ')');
         add_action( 'woocommerce_checkout_update_order_review',  'calculate_shipping' );
+    add_action( 'woocommerce_checkout_update_order_review', [ $this, 'force_recalc' ] );
+
         // $this->log_step('init(): end');
     }
 
+    public function force_recalc( $post_data ) {
+        $this->log_step('force_recalc(): triggered by checkout update');
+    
+        if ( WC()->cart ) {
+            WC()->cart->calculate_shipping();
+            WC()->cart->calculate_totals();
+        }
+    }
     public function init_form_fields() {
         // $this->log_step('init_form_fields(): start');
         $this->form_fields = [
