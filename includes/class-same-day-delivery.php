@@ -37,7 +37,7 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         // $this->log_step('init(): options loaded (enabled=' . $this->enabled . ', title=' . $this->title . ', is_free=' . $this->is_free . ')');
         add_action('woocommerce_update_options_shipping_' . $this->id, [$this, 'process_admin_options']);
         // $this->log_step('init(): hook registered (woocommerce_update_options_shipping_' . $this->id . ')');
-        add_action( 'woocommerce_checkout_update_order_review', [$this, 'calculate_shipping'] );
+        add_action( 'woocommerce_checkout_update_order_review',  'calculate_shipping' );
         // $this->log_step('init(): end');
     }
 
