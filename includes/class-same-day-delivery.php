@@ -1,79 +1,55 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
+
 class Same_Day_Delivery extends WC_Shipping_Method {
-    /**
-     * Append a log line to the plugin's local debug.log file.
-     */
     private function log_step($message) {
         $prefix = '[' . (isset($this->id) ? $this->id : 'same_day_delivery') . '] ';
         $line   = date('Y-m-d H:i:s') . ' ' . $prefix . $message . PHP_EOL;
-        $path   = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'debug.log'; // plugin-root/debug.log
+        $path   = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'debug.log';
         @file_put_contents($path, $line, FILE_APPEND);
     }
 
     public function __construct() {
-        $this->log_step('Constructor: start');
-        $this->id = 'same_day_delivery';
-        $this->method_title = 'Same Day Delivery';
+        $this->id                 = 'same_day_delivery';
+        $this->method_title       = 'Same Day Delivery';
         $this->method_description = 'Delivery within the same day';
-        $this->enabled = "yes";
-        $this->title = "Same Day Delivery";
-        // $this->log_step('Constructor: defaults set (enabled=' . $this->enabled . ', title=' . $this->title . ')');
+        $this->enabled            = "yes";
+        $this->title              = "Same Day Delivery";
+
         $this->init();
-        // $this->log_step('Constructor: end');
     }
 
     function init() {
-        $this->log_step('init(): start');
         $this->init_form_fields();
-        // $this->log_step('init(): init_form_fields done');
         $this->init_settings();
-        // $this->log_step('init(): init_settings done');
-        // Load persisted settings for common props
+
         $this->enabled = $this->get_option('enabled', $this->enabled);
         $this->title   = $this->get_option('title', $this->title);
         $this->is_free = $this->get_option('is_free', 'no');
-        // $this->log_step('init(): options loaded (enabled=' . $this->enabled . ', title=' . $this->title . ', is_free=' . $this->is_free . ')');
-        add_action('woocommerce_update_options_shipping_' . $this->id, [$this, 'process_admin_options']);
-        // $this->log_step('init(): hook registered (woocommerce_update_options_shipping_' . $this->id . ')');
-        add_action( 'woocommerce_checkout_update_order_review',  'calculate_shipping' );
-    add_action( 'woocommerce_checkout_update_order_review', [ $this, 'force_recalc' ] );
 
-        // $this->log_step('init(): end');
+        add_action(
+            'woocommerce_update_options_shipping_' . $this->id,
+            [ $this, 'process_admin_options' ]
+        );
+
+        // 👇 Hook into checkout updates so we can log & force recalculation
+        add_action(
+            'woocommerce_checkout_update_order_review',
+            [ $this, 'force_recalc' ]
+        );
     }
 
     public function force_recalc( $post_data ) {
-        $this->log_step('force_recalc(): triggered by checkout update');
-    
+        $this->log_step('force_recalc(): checkout update triggered');
+
         if ( WC()->cart ) {
+            $this->log_step('force_recalc(): calling WC()->cart->calculate_shipping()');
             WC()->cart->calculate_shipping();
             WC()->cart->calculate_totals();
         }
     }
-    public function init_form_fields() {
-        // $this->log_step('init_form_fields(): start');
-        $this->form_fields = [
-            'enabled' => [
-                'title' => 'Enabled',
-                'type' => 'checkbox',
-                'label' => 'Enable this shipping method',
-                'default' => 'yes',
-            ],
-            'title' => [
-                'title' => 'Title',
-                'type' => 'text',
-                'default' => 'Same Day Delivery'
-            ],
-            'is_free' => [
-                'title' => 'Free shipping',
-                'type'  => 'checkbox',
-                'label' => 'Make this method free (cost 0)',
-                'default' => 'no',
-            ],
-        ];
-        // $this->log_step('init_form_fields(): end');
-    }
+
     public function calculate_shipping($package = []) {
         $this->log_step('calculate_shipping(): start');
         // Destination and package contents overview
@@ -142,4 +118,27 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         $this->add_rate($rate);
         $this->log_step('calculate_shipping(): rate added and end');
     }
+
+    public function init_form_fields() {
+        $this->form_fields = [
+            'enabled' => [
+                'title'   => 'Enabled',
+                'type'    => 'checkbox',
+                'label'   => 'Enable this shipping method',
+                'default' => 'yes',
+            ],
+            'title' => [
+                'title'   => 'Title',
+                'type'    => 'text',
+                'default' => 'Same Day Delivery'
+            ],
+            'is_free' => [
+                'title'   => 'Free shipping',
+                'type'    => 'checkbox',
+                'label'   => 'Make this method free (cost 0)',
+                'default' => 'no',
+            ],
+        ];
+    }
 }
+
