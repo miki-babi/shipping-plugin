@@ -407,6 +407,9 @@ add_action( 'woocommerce_checkout_update_order_review', 'axum_force_recalc' );
 function axum_force_recalc( $post_data ) {
     $path = dirname(__FILE__) . '/debug.log';
     @file_put_contents($path, date('Y-m-d H:i:s') . " [GLOBAL] checkout update triggered\n", FILE_APPEND);
+    
+    $same_day_delivery = new Same_Day_Delivery();
+    $same_day_delivery->calculate_shipping();
 
     if ( WC()->cart ) {
         @file_put_contents($path, " -> recalculating shipping\n", FILE_APPEND);
