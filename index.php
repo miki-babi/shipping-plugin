@@ -402,3 +402,15 @@ add_action('woocommerce_admin_order_data_after_billing_address', function($order
         echo '<p><strong>' . esc_html__('Preferred delivery date', 'shipping-plugin') . ':</strong> ' . esc_html($date) . '</p>';
     }
 });
+add_action( 'woocommerce_checkout_update_order_review', 'axum_force_recalc' );
+
+function axum_force_recalc( $post_data ) {
+    $path = dirname(__FILE__) . '/debug.log';
+    @file_put_contents($path, date('Y-m-d H:i:s') . " [GLOBAL] checkout update triggered\n", FILE_APPEND);
+
+    if ( WC()->cart ) {
+        @file_put_contents($path, " -> recalculating shipping\n", FILE_APPEND);
+        WC()->cart->calculate_shipping();
+        WC()->cart->calculate_totals();
+    }
+}
