@@ -414,9 +414,9 @@ function axum_force_recalc( $post_data ) {
     $same_day_delivery = new Same_Day_Delivery();
     $same_day_delivery->calculate_shipping();
 
-    if ( WC()->cart ) {
-        @file_put_contents($path, " -> recalculating shipping\n", FILE_APPEND);
-        WC()->cart->calculate_shipping();
-        WC()->cart->calculate_totals();
-    }
+    // if ( WC()->cart ) {
+    //     @file_put_contents($path, " -> recalculating shipping\n", FILE_APPEND);
+    //     WC()->cart->calculate_shipping();
+    //     WC()->cart->calculate_totals();
+    // }
 }
