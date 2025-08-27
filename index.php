@@ -27,7 +27,12 @@ function sp_get_settings() {
     if (!is_array($opts)) $opts = [];
     return wp_parse_args($opts, $defaults);
 }
-
+function log_step($message) {
+    $prefix = '[' . (isset($this->id) ? $this->id : 'same_day_delivery') . '] ';
+    $line   = date('Y-m-d H:i:s') . ' ' . $prefix . $message . PHP_EOL;
+    $path   = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'debug.log';
+    @file_put_contents($path, $line, FILE_APPEND);
+}
 // Shared delivery modes: defaults and getters
 function sp_get_default_delivery_modes() {
     return [
@@ -405,9 +410,7 @@ add_action('woocommerce_admin_order_data_after_billing_address', function($order
 add_action( 'woocommerce_checkout_update_order_review', 'axum_force_recalc' );
 
 function axum_force_recalc( $post_data ) {
-    $path = dirname(__FILE__) . '/debug.log';
-    @file_put_contents($path, date('Y-m-d H:i:s') . " [GLOBAL] checkout update triggered\n", FILE_APPEND);
-    
+    log_step('axum_force_recalc(): checkout update triggered');
     $same_day_delivery = new Same_Day_Delivery();
     $same_day_delivery->calculate_shipping();
 
