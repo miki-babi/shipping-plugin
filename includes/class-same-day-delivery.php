@@ -33,21 +33,7 @@ class Same_Day_Delivery extends WC_Shipping_Method {
             [ $this, 'process_admin_options' ]
         );
 
-        // 👇 Hook into checkout updates so we can log & force recalculation
-        add_action(
-            'woocommerce_checkout_update_order_review',
-            [ $this, 'force_recalc' ]
-        );
-    }
-
-    public function force_recalc( $post_data ) {
-        $this->log_step('force_recalc(): checkout update triggered');
-
-        if ( WC()->cart ) {
-            $this->log_step('force_recalc(): calling WC()->cart->calculate_shipping()');
-            WC()->cart->calculate_shipping();
-            WC()->cart->calculate_totals();
-        }
+        // Removed checkout update hook to avoid recalculation loops
     }
 
     public function calculate_shipping($package = []) {
@@ -141,4 +127,3 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         ];
     }
 }
-
