@@ -107,13 +107,13 @@ class Next_Day_Delivery extends WC_Shipping_Method {
     
         // Free override
         if ($this->is_free === 'yes') {
-            $this->log_step('calculate_shipping(): is_free = yes -> adding 0 cost rate');
+            // $this->log_step('calculate_shipping(): is_free = yes -> adding 0 cost rate');
             $this->add_rate([
                 'id'    => $this->id,
                 'label' => $this->title,
                 'cost'  => 0,
             ]);
-            $this->log_step('calculate_shipping(): end (free)');
+            // $this->log_step('calculate_shipping(): end (free)');
             return;
         }
     
