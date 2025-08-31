@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Shipping Plugin
+ * Plugin Name: Shipping Plugin new rate
  * Description: A plugin for managing shipping functionality.
  * Version: 1.0.4
  * Author: mikiyas
