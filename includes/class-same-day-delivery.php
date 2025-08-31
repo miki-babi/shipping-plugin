@@ -78,18 +78,18 @@ class Same_Day_Delivery extends WC_Shipping_Method {
     
         // 📦 Weight-based pricing (all in grams now)
         if ($weight <= 500) {
-            $cost = 100;
+            $cost = 100 + (100* 0.05);
         } elseif ($weight <= 1000) {
-            $cost = 150;
+            $cost = 150 + (150* 0.05);
         } elseif ($weight <= 2000) {
-            $cost = 200;
+            $cost = 200 + (200* 0.05);
         } else {
             // Over 2000g → 200 + (25 for every extra 500g)
             $extra_weight = $weight - 2000;
             $extra_blocks = ceil($extra_weight / 500);
-            $cost = 200 + ($extra_blocks * 25);
+            $before_tax = 200 + ($extra_blocks * 25) ;
+            $cost = $before_tax + ($before_tax * 0.05);
         }
-    
         $this->log_step('calculate_shipping(): calculated_cost=' . $cost);
     
         // Add the shipping rate
