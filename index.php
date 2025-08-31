@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Shipping Plugin new rate
  * Description: A plugin for managing shipping functionality.
- * Version: 1.0.4
+ * Version: 1.0.0
  * Author: mikiyas
  * Author URI: https://t.me/mikiyas_sh
  * License: GPL-2.0+
