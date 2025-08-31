@@ -1,12 +1,14 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-
 class Same_Day_Delivery extends WC_Shipping_Method {
+
     private function log_step($message) {
         $prefix = '[' . (isset($this->id) ? $this->id : 'same_day_delivery') . '] ';
         $line   = date('Y-m-d H:i:s') . ' ' . $prefix . $message . PHP_EOL;
-        $path   = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'debug.log';
+
+        // safer path inside plugin
+        $path   = plugin_dir_path(__FILE__) . 'debug.log';
         @file_put_contents($path, $line, FILE_APPEND);
     }
 
@@ -16,6 +18,8 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         $this->method_description = 'Delivery within the same day';
         $this->enabled            = "yes";
         $this->title              = "Same Day Delivery";
+
+        parent::__construct(); // 👈 important for WooCommerce
 
         $this->init();
     }
@@ -32,34 +36,37 @@ class Same_Day_Delivery extends WC_Shipping_Method {
             'woocommerce_update_options_shipping_' . $this->id,
             [ $this, 'process_admin_options' ]
         );
-
-        // Removed checkout update hook to avoid recalculation loops
     }
+
     public function calculate_shipping($package = []) {
         $this->log_step('calculate_shipping(): start');
-    
+
         $items = isset($package['contents']) ? $package['contents'] : [];
         $this->log_step('calculate_shipping(): items_count=' . (is_array($items) ? count($items) : 0));
-    
-        if (is_array($items)) {
+
+        // Calculate weight directly from package
+        $weight = 0;
+        if (!empty($items) && is_array($items)) {
             foreach ($items as $key => $line) {
                 $product = isset($line['data']) ? $line['data'] : null;
+                $qty     = isset($line['quantity']) ? $line['quantity'] : 0;
+
+                if ($product && method_exists($product, 'get_weight')) {
+                    $pweight = floatval($product->get_weight());
+                    $weight += ($pweight * $qty);
+                } else {
+                    $pweight = 0;
+                }
+
                 $sku = ($product && method_exists($product, 'get_sku')) ? $product->get_sku() : '';
-                $pweight = ($product && method_exists($product, 'get_weight')) ? $product->get_weight() : '';
-                $qty = isset($line['quantity']) ? $line['quantity'] : 0;
-                $this->log_step('calculate_shipping(): item key=' . $key . ' sku=' . $sku . ' qty=' . $qty . ' product_weight=' . $pweight);
+
+                $this->log_step("calculate_shipping(): item key={$key} sku={$sku} qty={$qty} product_weight={$pweight}");
             }
         }
-    
-        // Get current package weight
-        $has_cart = (WC()->cart && method_exists(WC()->cart, 'get_cart_contents_weight'));
-        $this->log_step('calculate_shipping(): has_cart=' . ($has_cart ? 'yes' : 'no'));
-    
-        $weight   = floatval($has_cart ? WC()->cart->get_cart_contents_weight() : 0);
         $this->log_step('calculate_shipping(): total_weight=' . $weight);
-    
+
         // Free override
-        if ($this->get_option('is_free', 'no') === 'yes') {
+        if ($this->is_free === 'yes') {
             $this->log_step('calculate_shipping(): is_free = yes -> adding 0 cost rate');
             $this->add_rate([
                 'id'    => $this->id,
@@ -69,7 +76,7 @@ class Same_Day_Delivery extends WC_Shipping_Method {
             $this->log_step('calculate_shipping(): end (free)');
             return;
         }
-    
+
         // 📦 Weight-based pricing
         if ($weight <= 500) {
             $cost = 100;
@@ -80,23 +87,23 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         } else {
             // Over 2000 → 200 + (25 for every extra 500g)
             $extra_weight = $weight - 2000;
-            $extra_blocks = ceil($extra_weight / 500); 
+            $extra_blocks = ceil($extra_weight / 500);
             $cost = 200 + ($extra_blocks * 25);
         }
-    
+
         $this->log_step('calculate_shipping(): calculated_cost=' . $cost);
-    
+
         // Add the shipping rate
         $rate = [
             'id'    => $this->id,
             'label' => $this->title,
             'cost'  => $cost,
         ];
-    
+
         $this->add_rate($rate);
         $this->log_step('calculate_shipping(): rate added and end');
     }
-    
+
     public function init_form_fields() {
         $this->form_fields = [
             'enabled' => [
@@ -119,3 +126,9 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         ];
     }
 }
+
+// 🚚 Register the method with WooCommerce
+add_filter('woocommerce_shipping_methods', function($methods) {
+    $methods['same_day_delivery'] = 'Same_Day_Delivery';
+    return $methods;
+});
