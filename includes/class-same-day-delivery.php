@@ -3,12 +3,10 @@ if (!defined('ABSPATH')) exit;
 
 class Same_Day_Delivery extends WC_Shipping_Method {
 
-    private function log_step($message) {
+    function log_step($message) {
         $prefix = '[' . (isset($this->id) ? $this->id : 'same_day_delivery') . '] ';
         $line   = date('Y-m-d H:i:s') . ' ' . $prefix . $message . PHP_EOL;
-
-        // safer path inside plugin
-        $path   = plugin_dir_path(__FILE__) . 'debug.log';
+        $path   = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'debug.log';
         @file_put_contents($path, $line, FILE_APPEND);
     }
 
