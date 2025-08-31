@@ -40,31 +40,32 @@ class Same_Day_Delivery extends WC_Shipping_Method {
 
     public function calculate_shipping($package = []) {
         $this->log_step('calculate_shipping(): start');
-
+    
         $items = isset($package['contents']) ? $package['contents'] : [];
         $this->log_step('calculate_shipping(): items_count=' . (is_array($items) ? count($items) : 0));
-
-        // Calculate weight directly from package
+    
+        // Calculate weight directly from package (in grams)
         $weight = 0;
         if (!empty($items) && is_array($items)) {
             foreach ($items as $key => $line) {
                 $product = isset($line['data']) ? $line['data'] : null;
                 $qty     = isset($line['quantity']) ? $line['quantity'] : 0;
-
+    
                 if ($product && method_exists($product, 'get_weight')) {
-                    $pweight = floatval($product->get_weight());
+                    // WooCommerce weight is in kg → convert to grams
+                    $pweight = floatval($product->get_weight()) * 1000;
                     $weight += ($pweight * $qty);
                 } else {
                     $pweight = 0;
                 }
-
+    
                 $sku = ($product && method_exists($product, 'get_sku')) ? $product->get_sku() : '';
-
-                $this->log_step("calculate_shipping(): item key={$key} sku={$sku} qty={$qty} product_weight={$pweight}");
+    
+                $this->log_step("calculate_shipping(): item key={$key} sku={$sku} qty={$qty} product_weight_g={$pweight}");
             }
         }
-        $this->log_step('calculate_shipping(): total_weight=' . $weight);
-
+        $this->log_step('calculate_shipping(): total_weight_g=' . $weight);
+    
         // Free override
         if ($this->is_free === 'yes') {
             $this->log_step('calculate_shipping(): is_free = yes -> adding 0 cost rate');
@@ -76,8 +77,8 @@ class Same_Day_Delivery extends WC_Shipping_Method {
             $this->log_step('calculate_shipping(): end (free)');
             return;
         }
-
-        // 📦 Weight-based pricing
+    
+        // 📦 Weight-based pricing (all in grams now)
         if ($weight <= 500) {
             $cost = 100;
         } elseif ($weight <= 1000) {
@@ -85,24 +86,25 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         } elseif ($weight <= 2000) {
             $cost = 200;
         } else {
-            // Over 2000 → 200 + (25 for every extra 500g)
+            // Over 2000g → 200 + (25 for every extra 500g)
             $extra_weight = $weight - 2000;
             $extra_blocks = ceil($extra_weight / 500);
             $cost = 200 + ($extra_blocks * 25);
         }
-
+    
         $this->log_step('calculate_shipping(): calculated_cost=' . $cost);
-
+    
         // Add the shipping rate
         $rate = [
             'id'    => $this->id,
             'label' => $this->title,
             'cost'  => $cost,
         ];
-
+    
         $this->add_rate($rate);
         $this->log_step('calculate_shipping(): rate added and end');
     }
+    
 
     public function init_form_fields() {
         $this->form_fields = [
