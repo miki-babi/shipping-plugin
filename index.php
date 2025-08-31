@@ -34,37 +34,9 @@ function log_step($message) {
     @file_put_contents($path, $line, FILE_APPEND);
 }
 // Shared delivery modes: defaults and getters
-function sp_get_default_delivery_modes() {
-    return [
-        'bicycle' => [
-            'max_weight'   => 3.0,
-            'max_distance' => 5.0,
-            'base_price'   => 800.0,
-            'price_per_km' => 25.0,
-        ],
-        'motorbike' => [
-            'max_weight'   => 15.0,
-            'max_distance' => 12.0,
-            'base_price'   => 1200.0,
-            'price_per_km' => 22.0,
-        ],
-        'car' => [
-            'max_weight'   => 300.0,
-            'max_distance' => 25.0,
-            'base_price'   => 2000.0,
-            'price_per_km' => 25.0,
-        ],
-    ];
-}
 
-function sp_sanitize_mode_row($row, $defaults) {
-    $out = [];
-    foreach (['max_weight','max_distance','base_price','price_per_km'] as $k) {
-        $val = isset($row[$k]) ? floatval($row[$k]) : $defaults[$k];
-        $out[$k] = max(0.0, $val);
-    }
-    return $out;
-}
+
+
 
 function sp_get_delivery_modes() {
     $defaults = sp_get_default_delivery_modes();
@@ -79,141 +51,8 @@ function sp_get_delivery_modes() {
 }
 
 // Select cheapest eligible mode by weight/distance
-function sp_select_mode($weight, $distance, $modes) {
-    $eligible = [];
-    foreach ($modes as $key => $cfg) {
-        if ($weight <= floatval($cfg['max_weight']) && $distance <= floatval($cfg['max_distance'])) {
-            $cost = floatval($cfg['base_price']) + (floatval($cfg['price_per_km']) * $distance);
-            $eligible[] = [ 'key' => $key, 'config' => $cfg, 'cost' => $cost ];
-        }
-    }
-    if (empty($eligible)) return null;
-    usort($eligible, function($a,$b){ return $a['cost'] <=> $b['cost']; });
-    return $eligible[0];
-}
 
-// Standardized distance reader (km) from cookie
-function sp_get_distance_km() {
-    if (!isset($_COOKIE['delivery_distance'])) {
-        return 0.0;
-    }
-    $val = floatval($_COOKIE['delivery_distance']);
-    if (!is_finite($val)) {
-        return 0.0;
-    }
-    return max(0.0, $val);
-}
 
-// Admin menu (enable settings page)
-add_action('admin_menu', function() {
-    add_submenu_page(
-        'woocommerce',
-        __('Shipping Plugin Settings', 'shipping-plugin'),
-        __('Shipping Plugin', 'shipping-plugin'),
-        'manage_woocommerce',
-        'sp-settings',
-        'sp_render_settings_page'
-    );
-});
-
-function sp_render_settings_page() {
-    if (!current_user_can('manage_woocommerce')) return;
-    if (isset($_POST['sp_settings_nonce']) && wp_verify_nonce($_POST['sp_settings_nonce'], 'sp_save_settings')) {
-        // General settings
-        $new = [
-            'enable_other_days_date' => !empty($_POST['enable_other_days_date']) ? 'yes' : 'no',
-            'require_other_days_date' => !empty($_POST['require_other_days_date']) ? 'yes' : 'no',
-            'other_days_date_label' => isset($_POST['other_days_date_label']) ? sanitize_text_field($_POST['other_days_date_label']) : '',
-            'min_lead_days' => isset($_POST['min_lead_days']) ? max(0, intval($_POST['min_lead_days'])) : 0,
-        ];
-        update_option('sp_settings', $new);
-        // Delivery modes
-        $defaults = sp_get_default_delivery_modes();
-        $posted = isset($_POST['sp_modes']) && is_array($_POST['sp_modes']) ? $_POST['sp_modes'] : [];
-        $to_save = [];
-        foreach ($defaults as $key => $def) {
-            $row = isset($posted[$key]) ? (array)$posted[$key] : [];
-            $clean = [
-                'max_weight'   => isset($row['max_weight']) ? max(0, floatval($row['max_weight'])) : $def['max_weight'],
-                'max_distance' => isset($row['max_distance']) ? max(0, floatval($row['max_distance'])) : $def['max_distance'],
-                'base_price'   => isset($row['base_price']) ? max(0, floatval($row['base_price'])) : $def['base_price'],
-                'price_per_km' => isset($row['price_per_km']) ? max(0, floatval($row['price_per_km'])) : $def['price_per_km'],
-            ];
-            $to_save[$key] = $clean;
-        }
-        update_option('sp_delivery_modes', $to_save);
-        echo '<div class="updated"><p>' . esc_html__('Settings saved.', 'shipping-plugin') . '</p></div>';
-    }
-    $s = sp_get_settings();
-    $m = sp_get_delivery_modes();
-    ?>
-    <div class="wrap">
-        <h1><?php echo esc_html__('Shipping Plugin Settings', 'shipping-plugin'); ?></h1>
-        <form method="post">
-            <?php wp_nonce_field('sp_save_settings', 'sp_settings_nonce'); ?>
-            <h2 class="title"><?php echo esc_html__('Other Days date settings', 'shipping-plugin'); ?></h2>
-            <table class="form-table" role="presentation">
-                <tr>
-                    <th scope="row"><?php echo esc_html__('Enable date for Other Days', 'shipping-plugin'); ?></th>
-                    <td>
-                        <label><input type="checkbox" name="enable_other_days_date" value="1" <?php checked($s['enable_other_days_date'], 'yes'); ?>> <?php echo esc_html__('Enable', 'shipping-plugin'); ?></label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html__('Require date for Other Days', 'shipping-plugin'); ?></th>
-                    <td>
-                        <label><input type="checkbox" name="require_other_days_date" value="1" <?php checked($s['require_other_days_date'], 'yes'); ?>> <?php echo esc_html__('Require', 'shipping-plugin'); ?></label>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html__('Date field label', 'shipping-plugin'); ?></th>
-                    <td>
-                        <input type="text" name="other_days_date_label" class="regular-text" value="<?php echo esc_attr($s['other_days_date_label']); ?>">
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><?php echo esc_html__('Minimum lead days', 'shipping-plugin'); ?></th>
-                    <td>
-                        <input type="number" min="0" name="min_lead_days" value="<?php echo esc_attr(intval($s['min_lead_days'])); ?>">
-                        <p class="description"><?php echo esc_html__('Number of days from today to start allowing selection (0 = today).', 'shipping-plugin'); ?></p>
-                    </td>
-                </tr>
-            </table>
-
-            <h2 class="title"><?php echo esc_html__('Delivery modes', 'shipping-plugin'); ?></h2>
-            <p class="description"><?php echo esc_html__('Set max weight/distance and pricing for each delivery mode. All shipping methods will use the cheapest eligible mode based on cart weight and distance.', 'shipping-plugin'); ?></p>
-            <table class="widefat">
-                <thead>
-                    <tr>
-                        <th><?php echo esc_html__('Mode', 'shipping-plugin'); ?></th>
-                        <th><?php echo esc_html__('Max weight (kg)', 'shipping-plugin'); ?></th>
-                        <th><?php echo esc_html__('Max distance (km)', 'shipping-plugin'); ?></th>
-                        <th><?php echo esc_html__('Base price', 'shipping-plugin'); ?></th>
-                        <th><?php echo esc_html__('Price per km', 'shipping-plugin'); ?></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ([
-                        'bicycle' => __('Bicycle','shipping-plugin'),
-                        'motorbike' => __('Motorbike','shipping-plugin'),
-                        'car' => __('Car','shipping-plugin'),
-                    ] as $key => $label): $row = $m[$key]; ?>
-                    <tr>
-                        <td><strong><?php echo esc_html($label); ?></strong></td>
-                        <td><input type="number" step="0.001" min="0" name="sp_modes[<?php echo esc_attr($key); ?>][max_weight]" value="<?php echo esc_attr($row['max_weight']); ?>" /></td>
-                        <td><input type="number" step="0.001" min="0" name="sp_modes[<?php echo esc_attr($key); ?>][max_distance]" value="<?php echo esc_attr($row['max_distance']); ?>" /></td>
-                        <td><input type="number" step="0.01" min="0" name="sp_modes[<?php echo esc_attr($key); ?>][base_price]" value="<?php echo esc_attr($row['base_price']); ?>" /></td>
-                        <td><input type="number" step="0.01" min="0" name="sp_modes[<?php echo esc_attr($key); ?>][price_per_km]" value="<?php echo esc_attr($row['price_per_km']); ?>" /></td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-
-            <?php submit_button(); ?>
-        </form>
-    </div>
-    <?php
-}
 
 add_action('woocommerce_shipping_init', function() {
     require_once __DIR__ . '/includes/class-express-delivery.php';
