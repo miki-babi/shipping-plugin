@@ -246,16 +246,3 @@ add_action('woocommerce_admin_order_data_after_billing_address', function($order
         echo '<p><strong>' . esc_html__('Preferred delivery date', 'shipping-plugin') . ':</strong> ' . esc_html($date) . '</p>';
     }
 });
-// add_action( 'woocommerce_checkout_update_order_review', 'axum_force_recalc' );
-
-function axum_force_recalc( $post_data ) {
-    log_step('axum_force_recalc(): checkout update triggered');
-    $same_day_delivery = new Same_Day_Delivery();
-    $same_day_delivery->calculate_shipping();
-
-    // if ( WC()->cart ) {
-    //     @file_put_contents($path, " -> recalculating shipping\n", FILE_APPEND);
-    //     WC()->cart->calculate_shipping();
-    //     WC()->cart->calculate_totals();
-    // }
-}
