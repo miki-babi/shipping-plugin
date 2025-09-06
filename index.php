@@ -31,7 +31,7 @@ add_action('woocommerce_shipping_init', function() {
     require_once __DIR__ . '/includes/class-express-delivery.php';
     require_once __DIR__ . '/includes/class-same-day-delivery.php';
     require_once __DIR__ . '/includes/class-next-day-delivery.php';
-    require_once __DIR__ . '/includes/class-other-days-delivery.php';
+    // require_once __DIR__ . '/includes/class-other-days-delivery.php';
     require_once __DIR__ . '/includes/class-two-day-delivery.php';
     require_once __DIR__ . '/includes/class-shop-pickup.php';
 });
