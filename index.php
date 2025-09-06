@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Shipping Plugin new rate
+ * Plugin Name: Shipping Plugin distance and weight based
  * Description: A plugin for managing shipping functionality.
  * Version: 1.0.0
  * Author: mikiyas
