@@ -5,7 +5,7 @@
  * Version: 1.0.0
  * Author: mikiyas
  * Author URI: https://t.me/mikiyas_sh
- * License: GPL-2.0+
+ * License: GPL-2.0
  */
 
 // Prevent direct access to the file
