@@ -47,24 +47,6 @@ add_filter('woocommerce_shipping_methods', function($methods) {
 });
 
 
-// Create Ethiopia shipping zone on plugin activation (or defer until WC is loaded)
-register_activation_hook(__FILE__, function() {
-    if (class_exists('WC_Shipping_Zones')) {
-        sp_create_ethiopia_shipping_zone();
-    } else {
-        // Defer setup until WooCommerce is fully loaded
-        add_option('sp_deferred_zone_setup', 1);
-    }
-});
-
-// If deferred, run after plugins are loaded
-add_action('plugins_loaded', function() {
-    if (get_option('sp_deferred_zone_setup') && class_exists('WC_Shipping_Zones')) {
-        sp_create_ethiopia_shipping_zone();
-        delete_option('sp_deferred_zone_setup');
-    }
-});
-
 
 
 // ...existing code...
