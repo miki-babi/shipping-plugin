@@ -40,7 +40,7 @@ add_filter('woocommerce_shipping_methods', function($methods) {
     $methods['next_day_delivery'] = 'Next_Day_Delivery';
     $methods['express_delivery'] = 'Express_Delivery';
     $methods['same_day_delivery'] = 'Same_Day_Delivery';
-    $methods['other_days_delivery'] = 'Other_Days_Delivery';
+    // $methods['other_days_delivery'] = 'Other_Days_Delivery';
     $methods['two_day_delivery'] = 'Two_Day_Delivery';
     $methods['shop_pickup'] = 'Shop_Pickup';
     return $methods;
