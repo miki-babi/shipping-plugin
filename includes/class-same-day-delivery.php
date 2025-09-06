@@ -1,9 +1,9 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-
 class Same_Day_Delivery extends WC_Shipping_Method {
-    private function log_step($message) {
+
+    function log_step($message) {
         $prefix = '[' . (isset($this->id) ? $this->id : 'same_day_delivery') . '] ';
         $line   = date('Y-m-d H:i:s') . ' ' . $prefix . $message . PHP_EOL;
         $path   = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'debug.log';
@@ -16,6 +16,8 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         $this->method_description = 'Delivery within the same day';
         $this->enabled            = "yes";
         $this->title              = "Same Day Delivery";
+
+        parent::__construct(); // 👈 important for WooCommerce
 
         $this->init();
     }
@@ -32,38 +34,38 @@ class Same_Day_Delivery extends WC_Shipping_Method {
             'woocommerce_update_options_shipping_' . $this->id,
             [ $this, 'process_admin_options' ]
         );
-
-        // Removed checkout update hook to avoid recalculation loops
     }
 
     public function calculate_shipping($package = []) {
         $this->log_step('calculate_shipping(): start');
-        // Destination and package contents overview
-        $dest = isset($package['destination']) ? $package['destination'] : [];
-        $this->log_step('calculate_shipping(): destination=' . (function_exists('wp_json_encode') ? wp_json_encode($dest) : json_encode($dest)));
+    
         $items = isset($package['contents']) ? $package['contents'] : [];
         $this->log_step('calculate_shipping(): items_count=' . (is_array($items) ? count($items) : 0));
-        if (is_array($items)) {
+    
+        // Calculate weight directly from package (in grams)
+        $weight = 0;
+        if (!empty($items) && is_array($items)) {
             foreach ($items as $key => $line) {
                 $product = isset($line['data']) ? $line['data'] : null;
+                $qty     = isset($line['quantity']) ? $line['quantity'] : 0;
+    
+                if ($product && method_exists($product, 'get_weight')) {
+                    // WooCommerce weight is in kg → convert to grams
+                    $pweight = floatval($product->get_weight()) * 1000;
+                    $weight += ($pweight * $qty);
+                } else {
+                    $pweight = 0;
+                }
+    
                 $sku = ($product && method_exists($product, 'get_sku')) ? $product->get_sku() : '';
-                $pweight = ($product && method_exists($product, 'get_weight')) ? $product->get_weight() : '';
-                $qty = isset($line['quantity']) ? $line['quantity'] : 0;
-                $this->log_step('calculate_shipping(): item key=' . $key . ' sku=' . $sku . ' qty=' . $qty . ' product_weight=' . $pweight);
+    
+                $this->log_step("calculate_shipping(): item key={$key} sku={$sku} qty={$qty} product_weight_g={$pweight}");
             }
         }
-
-        // Get current package metrics
-        $has_cart = (WC()->cart && method_exists(WC()->cart, 'get_cart_contents_weight'));
-        $this->log_step('calculate_shipping(): has_cart=' . ($has_cart ? 'yes' : 'no'));
-        $weight   = floatval($has_cart ? WC()->cart->get_cart_contents_weight() : 0);
-        $distance_source = function_exists('sp_get_distance_km') ? 'sp_get_distance_km' : (isset($_COOKIE['delivery_distance']) ? 'cookie:delivery_distance' : 'none');
-        $distance = function_exists('sp_get_distance_km') ? sp_get_distance_km() : (isset($_COOKIE['delivery_distance']) ? floatval($_COOKIE['delivery_distance']) : 0.0);
-        $this->log_step('calculate_shipping(): distance_source=' . $distance_source);
-        $this->log_step('calculate_shipping(): metrics (weight=' . $weight . ', distance=' . $distance . ')');
-
+        $this->log_step('calculate_shipping(): total_weight_g=' . $weight);
+    
         // Free override
-        if ($this->get_option('is_free', 'no') === 'yes') {
+        if ($this->is_free === 'yes') {
             $this->log_step('calculate_shipping(): is_free = yes -> adding 0 cost rate');
             $this->add_rate([
                 'id'    => $this->id,
@@ -73,37 +75,34 @@ class Same_Day_Delivery extends WC_Shipping_Method {
             $this->log_step('calculate_shipping(): end (free)');
             return;
         }
-
-        // Use shared delivery modes and choose cheapest eligible
-        if (!function_exists('sp_get_delivery_modes') || !function_exists('sp_select_mode')) {
-            $this->log_step('calculate_shipping(): helper functions missing -> abort');
-            return; // shared helpers missing
+    
+        // 📦 Weight-based pricing (all in grams now)
+        if ($weight <= 500) {
+            $cost = 100 + (100* 0.05);
+        } elseif ($weight <= 1000) {
+            $cost = 150 + (150* 0.05);
+        } elseif ($weight <= 2000) {
+            $cost = 200 + (200* 0.05);
+        } else {
+            // Over 2000g → 200 + (25 for every extra 500g)
+            $extra_weight = $weight - 2000;
+            $extra_blocks = ceil($extra_weight / 500);
+            $before_tax = 200 + ($extra_blocks * 25) ;
+            $cost = $before_tax + ($before_tax * 0.05);
         }
-        $modes = sp_get_delivery_modes();
-        $this->log_step('calculate_shipping(): modes loaded count=' . (is_array($modes) ? count($modes) : 0));
-        if (is_array($modes)) {
-            // Log a compact snapshot of up to first 3 modes
-            $snapshot = array_slice($modes, 0, 3);
-            $this->log_step('calculate_shipping(): modes snapshot=' . (function_exists('wp_json_encode') ? wp_json_encode($snapshot) : json_encode($snapshot)));
-        }
-        $selected = sp_select_mode($weight, $distance, $modes);
-        if (!$selected) {
-            $this->log_step('calculate_shipping(): no eligible mode -> abort');
-            return; // no eligible mode
-        }
-        $this->log_step('calculate_shipping(): selected mode details=' . (function_exists('wp_json_encode') ? wp_json_encode($selected) : json_encode($selected)));
-        $cost = floatval($selected['cost']);
-        $this->log_step('calculate_shipping(): computed cost=' . $cost);
-
+        $this->log_step('calculate_shipping(): calculated_cost=' . $cost);
+    
+        // Add the shipping rate
         $rate = [
             'id'    => $this->id,
             'label' => $this->title,
             'cost'  => $cost,
         ];
-        $this->log_step('calculate_shipping(): final rate payload=' . (function_exists('wp_json_encode') ? wp_json_encode($rate) : json_encode($rate)));
+    
         $this->add_rate($rate);
         $this->log_step('calculate_shipping(): rate added and end');
     }
+    
 
     public function init_form_fields() {
         $this->form_fields = [
@@ -127,3 +126,9 @@ class Same_Day_Delivery extends WC_Shipping_Method {
         ];
     }
 }
+
+// 🚚 Register the method with WooCommerce
+add_filter('woocommerce_shipping_methods', function($methods) {
+    $methods['same_day_delivery'] = 'Same_Day_Delivery';
+    return $methods;
+});
